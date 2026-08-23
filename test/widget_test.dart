@@ -1,30 +1,83 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tcc_ela_eye_tracking_interface/main.dart';
+import 'package:tcc_ela_eye_tracking_interface/widgets/message_bar.dart';
+
+/// Texto atualmente na faixa de mensagem (ignora as teclas de mesmo rótulo).
+Finder messageText(String text) => find.descendant(
+      of: find.byType(MessageBar),
+      matching: find.text(text),
+    );
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  // A câmera não existe no ambiente de teste; CameraView cai no estado de erro
+  // e o resto da tela segue funcionando, que é o que interessa aqui.
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
+  testWidgets('começa com a mensagem vazia e a primeira tecla destacada',
+      (tester) async {
+    await tester.pumpWidget(const ElaCommunicatorApp());
     await tester.pump();
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(messageText('Sua mensagem aparece aqui'), findsOneWidget);
+  });
+
+  testWidgets('confirmar digita a tecla destacada', (tester) async {
+    await tester.pumpWidget(const ElaCommunicatorApp());
+    await tester.pump();
+
+    await tester.tap(find.byIcon(Icons.check));
+    await tester.pump();
+
+    expect(messageText('Q'), findsOneWidget);
+  });
+
+  testWidgets('as setas movem o destaque antes de confirmar', (tester) async {
+    await tester.pumpWidget(const ElaCommunicatorApp());
+    await tester.pump();
+
+    await tester.tap(find.byIcon(Icons.keyboard_arrow_right));
+    await tester.pump();
+    await tester.tap(find.byIcon(Icons.check));
+    await tester.pump();
+
+    expect(messageText('W'), findsOneWidget);
+  });
+
+  testWidgets('a coluna é limitada ao mudar para uma linha mais curta',
+      (tester) async {
+    await tester.pumpWidget(const ElaCommunicatorApp());
+    await tester.pump();
+
+    // Última coluna da primeira linha (P), depois desce para a linha final,
+    // que só tem três teclas.
+    for (var i = 0; i < 9; i++) {
+      await tester.tap(find.byIcon(Icons.keyboard_arrow_right));
+      await tester.pump();
+    }
+    for (var i = 0; i < 3; i++) {
+      await tester.tap(find.byIcon(Icons.keyboard_arrow_down));
+      await tester.pump();
+    }
+    await tester.tap(find.byIcon(Icons.check));
+    await tester.pump();
+
+    // Sem o clamp isto estouraria o índice da linha de teclas especiais.
+    expect(messageText('LIMPAR'), findsNothing);
+  });
+
+  testWidgets('apagar remove o último caractere', (tester) async {
+    await tester.pumpWidget(const ElaCommunicatorApp());
+    await tester.pump();
+
+    await tester.tap(find.text('O'));
+    await tester.pump();
+    await tester.tap(find.text('I'));
+    await tester.pump();
+    expect(messageText('OI'), findsOneWidget);
+
+    await tester.tap(find.text('APAGAR'));
+    await tester.pump();
+    expect(messageText('O'), findsOneWidget);
   });
 }
