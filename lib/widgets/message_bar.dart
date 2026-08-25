@@ -20,9 +20,12 @@ class MessageBar extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: scheme.outlineVariant),
       ),
+      // Alinhado à esquerda e centrado na vertical: a faixa agora divide a
+      // altura do cabeçalho com a prévia da câmera.
+      alignment: Alignment.centerLeft,
       child: Text(
         isEmpty ? 'Sua mensagem aparece aqui' : text,
-        maxLines: 2,
+        maxLines: 3,
         overflow: TextOverflow.ellipsis,
         style: theme.textTheme.headlineSmall?.copyWith(
           color: isEmpty ? scheme.onSurfaceVariant : scheme.onSurface,

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../models/control_style.dart';
 import '../models/gaze_command.dart';
 import '../models/keyboard_layout.dart';
 import '../widgets/camera_view.dart';
 import '../widgets/direction_pad.dart';
+import '../widgets/edge_controls.dart';
+import '../widgets/gaze_button.dart';
 import '../widgets/message_bar.dart';
 import '../widgets/on_screen_keyboard.dart';
 
@@ -12,11 +15,27 @@ import '../widgets/on_screen_keyboard.dart';
 /// Toda a interação passa por [_handleCommand]. Quando o eye tracking entrar,
 /// basta ele chamar esse mesmo método — nada aqui precisa mudar.
 class CommunicatorScreen extends StatefulWidget {
-  const CommunicatorScreen({super.key});
+  const CommunicatorScreen({
+    super.key,
+    this.controlStyle = ControlStyle.edges,
+  });
+
+  final ControlStyle controlStyle;
 
   @override
   State<CommunicatorScreen> createState() => _CommunicatorScreenState();
 }
+
+/// Largura/altura do teclado que deixa as teclas aproximadamente quadradas,
+/// derivada do próprio layout em vez de um número mágico.
+final double _keyboardAspectRatio =
+    kKeyboardRows.map((row) => row.length).reduce((a, b) => a > b ? a : b) /
+        (kKeyboardRows.length + 0.4);
+
+/// Em retrato o miolo é estreito e alto: teclas quadradas deixariam o teclado
+/// minúsculo no meio de um vazio. Esticá-las na vertical aproveita a altura
+/// disponível sem espremer a largura, que é o eixo escasso.
+final double _keyboardAspectRatioTall = _keyboardAspectRatio / 1.4;
 
 class _CommunicatorScreenState extends State<CommunicatorScreen> {
   String _message = '';
@@ -83,15 +102,10 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final isWide = constraints.maxWidth > constraints.maxHeight;
-              return Column(
-                children: [
-                  MessageBar(text: _message),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: isWide ? _wideLayout() : _tallLayout(),
-                  ),
-                ],
-              );
+              return switch (widget.controlStyle) {
+                ControlStyle.edges => _edgesLayout(isWide),
+                ControlStyle.cross => _crossLayout(isWide),
+              };
             },
           ),
         ),
@@ -99,45 +113,123 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
     );
   }
 
-  /// Paisagem: câmera e setas numa coluna à esquerda, teclado ocupando o resto.
-  Widget _wideLayout() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+  // --- Arranjo de bordas ---------------------------------------------------
+
+  /// Setas emoldurando a tela; mensagem, câmera, teclado e confirmar no miolo.
+  Widget _edgesLayout(bool isWide) {
+    return EdgeControls(
+      onCommand: _handleCommand,
+      // Confirmar fica dentro da moldura, longe das bordas: é o comando que
+      // não pode ser disparado por engano.
+      child: isWide ? _edgesCenterWide() : _edgesCenterTall(),
+    );
+  }
+
+  /// Paisagem: o miolo é baixo, então confirmar vai para a lateral em vez de
+  /// consumir mais uma faixa de altura que falta ao teclado.
+  Widget _edgesCenterWide() {
+    return Column(
       children: [
+        _header(true),
+        const SizedBox(height: 12),
         Expanded(
-          flex: 2,
-          child: Column(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Expanded(child: CameraView()),
-              const SizedBox(height: 12),
-              Expanded(child: DirectionPad(onCommand: _handleCommand)),
+              Expanded(child: _keyboard()),
+              const SizedBox(width: 12),
+              SizedBox(width: 140, child: _confirmButton()),
             ],
           ),
         ),
-        const SizedBox(width: 12),
-        Expanded(flex: 5, child: _keyboard()),
       ],
     );
   }
 
-  /// Retrato: câmera e setas lado a lado em cima, teclado embaixo.
-  Widget _tallLayout() {
+  /// Retrato: o miolo é estreito, então o teclado recebe proporção fixa para
+  /// as teclas não virarem pílulas altas, e confirmar ocupa a faixa de baixo.
+  Widget _edgesCenterTall() {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        _header(false),
+        const SizedBox(height: 12),
         Expanded(
-          flex: 4,
-          child: Row(
-            children: [
-              const Expanded(child: CameraView()),
-              const SizedBox(width: 12),
-              Expanded(child: DirectionPad(onCommand: _handleCommand)),
-            ],
+          child: Center(
+            child: AspectRatio(
+              aspectRatio: _keyboardAspectRatioTall,
+              child: _keyboard(),
+            ),
           ),
         ),
         const SizedBox(height: 12),
-        Expanded(flex: 5, child: _keyboard()),
+        SizedBox(height: 68, child: _confirmButton()),
       ],
+    );
+  }
+
+  Widget _confirmButton() {
+    return GazeButton(
+      command: GazeCommand.select,
+      iconSize: 28,
+      style: GazeButtonStyle.primary,
+      showLabel: true,
+      onPressed: () => _handleCommand(GazeCommand.select),
+    );
+  }
+
+  // --- Arranjo em cruz -----------------------------------------------------
+
+  Widget _crossLayout(bool isWide) {
+    return Column(
+      children: [
+        _header(isWide),
+        const SizedBox(height: 12),
+        Expanded(
+          child: isWide
+              ? Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: DirectionPad(onCommand: _handleCommand),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(flex: 3, child: _keyboard()),
+                  ],
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: DirectionPad(onCommand: _handleCommand),
+                    ),
+                    const SizedBox(height: 12),
+                    Expanded(flex: 2, child: _keyboard()),
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+
+  // --- Partes comuns -------------------------------------------------------
+
+  /// Cabeçalho: mensagem à esquerda e uma prévia compacta da câmera à direita.
+  ///
+  /// A câmera só precisa ser grande o suficiente para o usuário conferir o
+  /// enquadramento do rosto — o espaço economizado vai para as setas.
+  Widget _header(bool isWide) {
+    return SizedBox(
+      height: isWide ? 76 : 116,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(child: MessageBar(text: _message)),
+          const SizedBox(width: 12),
+          const AspectRatio(aspectRatio: 3 / 4, child: CameraView()),
+        ],
+      ),
     );
   }
 
