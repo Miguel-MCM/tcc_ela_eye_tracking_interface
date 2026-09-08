@@ -136,9 +136,9 @@ List<double> _solve(List<List<double>> a, List<double> b) {
 /// mapeamento é quase linear nessa faixa, então extrapolar até a borda custa
 /// menos que calibrar com pontos ruins.
 List<math.Point<double>> calibrationTargets({
-  int cols = 3,
-  int rows = 3,
-  double margin = 0.20,
+  int cols = 5,
+  int rows = 5,
+  double margin = 0.10,
 }) {
   final targets = <math.Point<double>>[];
   for (var r = 0; r < rows; r++) {
@@ -155,7 +155,7 @@ List<math.Point<double>> calibrationTargets({
 /// Faixas das bordas, em fração de tela. Os padrões acompanham as barras de
 /// `EdgeControls` (16% na vertical, 14% na horizontal).
 class GazeBands {
-  const GazeBands({this.horizontal = 0.25, this.vertical = 0.25});
+  const GazeBands({this.horizontal = 0.33, this.vertical = 0.33});
 
   final double horizontal;
   final double vertical;

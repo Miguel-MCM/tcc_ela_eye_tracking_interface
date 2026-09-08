@@ -10,6 +10,7 @@ import 'package:google_mlkit_face_mesh_detection/google_mlkit_face_mesh_detectio
 import '../models/gaze_command.dart';
 import 'camera_frame.dart';
 import 'eye_crop.dart';
+import 'gaze_kalman.dart';
 import 'gaze_mapper.dart';
 import 'pupil_detector.dart';
 
@@ -70,7 +71,7 @@ class GazeTracker {
   GazeTracker({
     required this.detector,
     required this.cropParams,
-    this.dwell = const Duration(milliseconds: 2000),
+    this.dwell = const Duration(milliseconds: 1500),
     this.smoothing = const Duration(milliseconds: 500),
     this.bands = const GazeBands(),
     this.meshEveryNFrames = 3,
@@ -103,7 +104,6 @@ class GazeTracker {
   final _faceMesh = FaceMeshDetector(option: FaceMeshDetectorOptions.faceMesh);
   final _samples = StreamController<GazeSample>.broadcast();
   final _commands = StreamController<GazeCommand>.broadcast();
-  final _window = <({DateTime at, math.Point<double> point})>[];
 
   Stream<GazeSample> get samples => _samples.stream;
   Stream<GazeCommand> get commands => _commands.stream;
@@ -112,7 +112,7 @@ class GazeTracker {
   GazeMap? get map => _map;
   set map(GazeMap? value) {
     _map = value;
-    _window.clear();
+    _kalman.reset();
   }
 
   bool _busy = false;
@@ -132,6 +132,8 @@ class GazeTracker {
 
   /// Última feature bruta, consumida pela tela de calibração.
   math.Point<double>? lastFeature;
+
+  final _kalman = GazeKalman();
 
   static Future<CropParams> loadCropParams() async {
     final raw = await rootBundle.loadString('assets/models/crop_params.json');
@@ -205,7 +207,6 @@ class GazeTracker {
       if (meshes.isEmpty) {
         _corners = null;
         _cornerHistory.clear();
-        _window.clear();
         _emit(const GazeSample(point: null, command: null, eyesFound: 0, faceFound: false));
         return;
       }
@@ -259,14 +260,9 @@ class GazeTracker {
       return;
     }
 
-    // Janela por TEMPO, não por contagem de quadros: a taxa real varia com a
-    // carga (medi de 5 a 16 fps no mesmo aparelho), e um tamanho fixo viraria
-    // segundos de atraso quando ela cai.
     final now = DateTime.now();
-    _window.add((at: now, point: gazeMap.predict(lastFeature!)));
-    _window.removeWhere((s) => now.difference(s.at) > smoothing);
-
-    final point = _median(_window.map((s) => s.point).toList());
+    final measurement = gazeMap.predict(lastFeature!) ;
+    final point = _kalman.update(measurement, now);
     final command = commandFor(point, bands);
     _updateDwell(command);
     _emit(GazeSample(
@@ -372,7 +368,6 @@ class GazeTracker {
       debugPrint('[gaze] ${fps.toStringAsFixed(1)} fps | rosto em $_frames '
           'quadros: $_faces | olhos/quadro: '
           '${(_eyes / _frames).toStringAsFixed(2)} | calibrado: ${_map != null}'
-          ' | janela: ${_window.length}'
           ' | cantos±${_cornerJitter().toStringAsFixed(2)}px'
           ' | mesh ${(_meshUs / 1000 / _frames).toStringAsFixed(0)}ms'
           ' pupila ${(_pupilUs / 1000 / _frames).toStringAsFixed(0)}ms');
