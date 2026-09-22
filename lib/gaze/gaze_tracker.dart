@@ -324,16 +324,6 @@ class GazeTracker {
     return out.isEmpty ? null : out;
   }
 
-  /// Mediana por eixo: uma detecção ruim isolada não arrasta o ponto.
-  static math.Point<double> _median(List<math.Point<double>> points) {
-    final xs = points.map((p) => p.x).toList()..sort();
-    final ys = points.map((p) => p.y).toList()..sort();
-    final mid = xs.length ~/ 2;
-    return xs.length.isOdd
-        ? math.Point(xs[mid], ys[mid])
-        : math.Point((xs[mid - 1] + xs[mid]) / 2, (ys[mid - 1] + ys[mid]) / 2);
-  }
-
   void _updateDwell(GazeCommand command) {
     final now = DateTime.now();
     if (command != _dwellCommand) {
