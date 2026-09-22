@@ -82,7 +82,7 @@ class _AxisKalman {
     final pp11 = _p11 + accelerationVariance * dt2;
 
 
-    final innovationVariance = _p00 + measurementVariance;
+    final innovationVariance = pp00 + measurementVariance;
     final innovation = measurement - predictedPosition;
     final kPosition = pp00 / innovationVariance;
     final kVelocity = pp01 / innovationVariance;
