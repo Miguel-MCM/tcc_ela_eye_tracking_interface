@@ -3,14 +3,13 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tcc_ela_eye_tracking_interface/main.dart';
 import 'package:tcc_ela_eye_tracking_interface/models/control_style.dart';
+import 'package:tcc_ela_eye_tracking_interface/models/word_predictor.dart';
 import 'package:tcc_ela_eye_tracking_interface/screens/communicator_screen.dart';
 import 'package:tcc_ela_eye_tracking_interface/widgets/message_bar.dart';
 
 /// Texto atualmente na faixa de mensagem (ignora as teclas de mesmo rótulo).
-Finder messageText(String text) => find.descendant(
-      of: find.byType(MessageBar),
-      matching: find.text(text),
-    );
+Finder messageText(String text) =>
+    find.descendant(of: find.byType(MessageBar), matching: find.text(text));
 
 void main() {
   // A câmera não existe no ambiente de teste; CameraView cai no estado de erro
@@ -41,8 +40,9 @@ void main() {
         expect(messageText('Q'), findsOneWidget);
       });
 
-      testWidgets('as setas movem o destaque antes de confirmar',
-          (tester) async {
+      testWidgets('as setas movem o destaque antes de confirmar', (
+        tester,
+      ) async {
         await pump(tester);
 
         await tester.tap(find.byIcon(Icons.keyboard_arrow_right));
@@ -53,8 +53,9 @@ void main() {
         expect(messageText('W'), findsOneWidget);
       });
 
-      testWidgets('a coluna é limitada ao mudar para uma linha mais curta',
-          (tester) async {
+      testWidgets('a coluna é limitada ao mudar para uma linha mais curta', (
+        tester,
+      ) async {
         await pump(tester);
 
         // Última coluna da primeira linha (P), depois desce para a linha
@@ -95,5 +96,32 @@ void main() {
     await tester.pump();
 
     expect(find.text('CONFIRMAR'), findsOneWidget);
+  });
+
+  test('o modelo recomenda a próxima palavra pelo contexto', () {
+    final predictor = WordPredictor.defaultModel();
+
+    expect(predictor.suggest('eu quero'), contains('beber'));
+    expect(predictor.suggest('eu quero b'), contains('beber'));
+  });
+
+  testWidgets('uma sugestão completa a palavra atual', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: CommunicatorScreen()));
+    await tester.pump();
+
+    for (final key in ['E', 'U', 'ESPAÇO', 'Q', 'U', 'E', 'R', 'O']) {
+      await tester.tap(find.text(key).last);
+      await tester.pump();
+    }
+    await tester.tap(find.text('BEBER'));
+    await tester.pump();
+
+    expect(
+      find.descendant(
+        of: find.byType(MessageBar),
+        matching: find.textContaining('EU QUERO BEBER'),
+      ),
+      findsOneWidget,
+    );
   });
 }

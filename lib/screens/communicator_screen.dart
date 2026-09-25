@@ -10,6 +10,7 @@ import '../gaze/pupil_detector.dart';
 import '../models/control_style.dart';
 import '../models/gaze_command.dart';
 import '../models/keyboard_layout.dart';
+import '../models/word_predictor.dart';
 import '../widgets/camera_view.dart';
 import '../widgets/direction_pad.dart';
 import '../widgets/edge_controls.dart';
@@ -23,10 +24,7 @@ import 'calibration_screen.dart';
 /// Toda a interação passa por [_handleCommand]. Quando o eye tracking entrar,
 /// basta ele chamar esse mesmo método — nada aqui precisa mudar.
 class CommunicatorScreen extends StatefulWidget {
-  const CommunicatorScreen({
-    super.key,
-    this.controlStyle = ControlStyle.edges,
-  });
+  const CommunicatorScreen({super.key, this.controlStyle = ControlStyle.edges});
 
   final ControlStyle controlStyle;
 
@@ -38,7 +36,7 @@ class CommunicatorScreen extends StatefulWidget {
 /// derivada do próprio layout em vez de um número mágico.
 final double _keyboardAspectRatio =
     kKeyboardRows.map((row) => row.length).reduce((a, b) => a > b ? a : b) /
-        (kKeyboardRows.length + 0.4);
+    (kKeyboardRows.length + 0.4);
 
 /// Em retrato o miolo é estreito e alto: teclas quadradas deixariam o teclado
 /// minúsculo no meio de um vazio. Esticá-las na vertical aproveita a altura
@@ -46,9 +44,12 @@ final double _keyboardAspectRatio =
 final double _keyboardAspectRatioTall = _keyboardAspectRatio / 1.4;
 
 class _CommunicatorScreenState extends State<CommunicatorScreen> {
+  final _wordPredictor = WordPredictor.defaultModel();
   String _message = '';
   int _row = 0;
   int _column = 0;
+
+  List<String> get _suggestions => _wordPredictor.suggest(_message);
 
   GazeTracker? _tracker;
   StreamSubscription<GazeCommand>? _commandSub;
@@ -161,6 +162,26 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
         case KeyAction.clear:
           _message = '';
       }
+    });
+  }
+
+  void _acceptSuggestion(String suggestion) {
+    final endsWithSpace = _message.endsWith(' ');
+    final completesCurrentWord = _wordPredictor
+        .suggest('$_message ')
+        .contains(suggestion);
+    final words = _message.trimRight().split(RegExp(r'\s+'));
+    final prefix = endsWithSpace
+        ? _message
+        : completesCurrentWord
+        ? '${_message.trim()} '
+        : _message.trim().isEmpty
+        ? ''
+        : words.length > 1
+        ? '${words.sublist(0, words.length - 1).join(' ')} '
+        : '';
+    setState(() {
+      _message = '$prefix${suggestion.toUpperCase()} ';
     });
   }
 
@@ -323,11 +344,17 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
   /// enquadramento do rosto — o espaço economizado vai para as setas.
   Widget _header(bool isWide) {
     return SizedBox(
-      height: isWide ? 76 : 116,
+      height: isWide ? 112 : 152,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(child: MessageBar(text: _message)),
+          Expanded(
+            child: MessageBar(
+              text: _message,
+              suggestions: _suggestions,
+              onSuggestionTap: _acceptSuggestion,
+            ),
+          ),
           const SizedBox(width: 12),
           _gazeStatus(),
           const SizedBox(width: 12),
@@ -362,10 +389,6 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
   }
 
   Widget _keyboard() {
-    return OnScreenKeyboard(
-      row: _row,
-      column: _column,
-      onKeyTap: _pressKey,
-    );
+    return OnScreenKeyboard(row: _row, column: _column, onKeyTap: _pressKey);
   }
 }
