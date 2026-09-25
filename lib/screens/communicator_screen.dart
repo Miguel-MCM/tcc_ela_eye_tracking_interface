@@ -1,5 +1,12 @@
+import 'dart:async';
+
+import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../gaze/gaze_mapper.dart';
+import '../gaze/gaze_tracker.dart';
+import '../gaze/pupil_detector.dart';
 import '../models/control_style.dart';
 import '../models/gaze_command.dart';
 import '../models/keyboard_layout.dart';
@@ -9,6 +16,7 @@ import '../widgets/edge_controls.dart';
 import '../widgets/gaze_button.dart';
 import '../widgets/message_bar.dart';
 import '../widgets/on_screen_keyboard.dart';
+import 'calibration_screen.dart';
 
 /// Tela principal: prévia da câmera, setas de navegação e teclado.
 ///
@@ -41,6 +49,69 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
   String _message = '';
   int _row = 0;
   int _column = 0;
+
+  GazeTracker? _tracker;
+  StreamSubscription<GazeCommand>? _commandSub;
+  StreamSubscription<GazeSample>? _sampleSub;
+  GazeSample? _gaze;
+  String? _gazeError;
+
+  @override
+  void dispose() {
+    _commandSub?.cancel();
+    _sampleSub?.cancel();
+    _tracker?.dispose();
+    super.dispose();
+  }
+
+  /// A câmera fica pronta depois da tela; o rastreador só pode ser ligado aqui.
+  Future<void> _onCameraReady(CameraController? controller) async {
+    if (controller == null) {
+      await _commandSub?.cancel();
+      await _sampleSub?.cancel();
+      await _tracker?.dispose();
+      if (mounted) setState(() => _tracker = null);
+      return;
+    }
+    if (_tracker != null) return;
+
+    try {
+      final tracker = GazeTracker(
+        detector: await PupilDetector.load(),
+        cropParams: await GazeTracker.loadCropParams(),
+      );
+      // O rastreador emite exatamente os mesmos comandos das setas, então entra
+      // por _handleCommand sem que nada na interface precise mudar.
+      _commandSub = tracker.commands.listen(_handleCommand);
+      _sampleSub = tracker.samples.listen((s) {
+        if (mounted) setState(() => _gaze = s);
+      });
+      await tracker.attach(controller);
+      if (!mounted) {
+        await tracker.dispose();
+        return;
+      }
+      setState(() => _tracker = tracker);
+    } catch (e, stack) {
+      // Sem este log a falha só apareceria como um ícone, e a causa se perderia.
+      debugPrint('[gaze] falha ao iniciar o rastreador: $e\n$stack');
+      if (mounted) setState(() => _gazeError = '$e');
+    }
+  }
+
+  Future<void> _calibrate() async {
+    final tracker = _tracker;
+    if (tracker == null) return;
+    final result = await Navigator.of(context).push<({GazeMap map, double residual, int targets})>(
+      MaterialPageRoute(builder: (_) => CalibrationScreen(tracker: tracker)),
+    );
+    if (result == null || !mounted) return;
+    setState(() => tracker.map = result.map);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text('Calibrado com ${result.targets} alvos · resíduo '
+          '${(result.residual * 100).toStringAsFixed(1)}% da tela'),
+    ));
+  }
 
   void _handleCommand(GazeCommand command) {
     switch (command) {
@@ -96,17 +167,47 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final isWide = constraints.maxWidth > constraints.maxHeight;
-              return switch (widget.controlStyle) {
-                ControlStyle.edges => _edgesLayout(isWide),
-                ControlStyle.cross => _crossLayout(isWide),
-              };
-            },
+      body: Stack(
+        children: [
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isWide = constraints.maxWidth > constraints.maxHeight;
+                  return switch (widget.controlStyle) {
+                    ControlStyle.edges => _edgesLayout(isWide),
+                    ControlStyle.cross => _crossLayout(isWide),
+                  };
+                },
+              ),
+            ),
+          ),
+          if (kDebugMode) _debugGazeDot(),
+        ],
+      ),
+    );
+  }
+
+  /// Ponto da previsão, no mesmo espaço [0,1] da calibração. Só em debug.
+  Widget _debugGazeDot() {
+    final p = _gaze?.point;
+    if (p == null) return const SizedBox.shrink();
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: Align(
+          alignment: Alignment(
+            p.x.clamp(0.0, 1.0) * 2 - 1,
+            p.y.clamp(0.0, 1.0) * 2 - 1,
+          ),
+          child: Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.cyanAccent.withValues(alpha: 0.35),
+              border: Border.all(color: Colors.cyanAccent, width: 2),
+            ),
           ),
         ),
       ),
@@ -119,6 +220,7 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
   Widget _edgesLayout(bool isWide) {
     return EdgeControls(
       onCommand: _handleCommand,
+      activeCommand: _tracker?.dwellCommand,
       // Confirmar fica dentro da moldura, longe das bordas: é o comando que
       // não pode ser disparado por engano.
       child: isWide ? _edgesCenterWide() : _edgesCenterTall(),
@@ -227,8 +329,34 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
         children: [
           Expanded(child: MessageBar(text: _message)),
           const SizedBox(width: 12),
-          const AspectRatio(aspectRatio: 3 / 4, child: CameraView()),
+          _gazeStatus(),
+          const SizedBox(width: 12),
+          AspectRatio(
+            aspectRatio: 3 / 4,
+            child: CameraView(onControllerReady: _onCameraReady),
+          ),
         ],
+      ),
+    );
+  }
+
+  /// Estado do rastreador: um toque calibra, e o ícone diz por que ele não está
+  /// funcionando quando não está.
+  Widget _gazeStatus() {
+    final tracker = _tracker;
+    final (IconData icon, String tip) = switch ((tracker, _gaze, _gazeError)) {
+      (_, _, final String e) when e.isNotEmpty => (Icons.error_outline, 'Falhou: \$e'),
+      (null, _, _) => (Icons.hourglass_empty, 'Carregando o rastreador...'),
+      (_, final g?, _) when !g.faceFound => (Icons.face_retouching_off, 'Rosto não encontrado'),
+      (_, final g?, _) when g.eyesFound == 0 => (Icons.visibility_off, 'Pupilas não detectadas'),
+      (final t?, _, _) when t.map == null => (Icons.adjust, 'Detectando · toque para calibrar'),
+      _ => (Icons.visibility, 'Rastreando · toque para recalibrar'),
+    };
+    return Tooltip(
+      message: tip,
+      child: IconButton.filledTonal(
+        onPressed: tracker == null ? null : _calibrate,
+        icon: Icon(icon),
       ),
     );
   }

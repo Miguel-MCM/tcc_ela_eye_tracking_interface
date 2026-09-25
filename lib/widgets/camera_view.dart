@@ -73,10 +73,14 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
 
       final controller = CameraController(
         front,
-        // Resolução baixa basta para o enquadramento e deixa sobra de CPU
-        // para a detecção facial que virá depois.
+        // 480p, não mais: o custo do Face Mesh cresce com a resolução e ele é
+        // o gargalo (medido: 150 ms a 720p contra 48 ms dos dois olhos juntos).
+        // A 480p o olho ainda tem ~100 px, acima dos ~70 px do treino.
         ResolutionPreset.medium,
         enableAudio: false,
+        // NV21 é o formato que o ML Kit aceita no Android e o mesmo que o
+        // tracker amostra, o que evita converter o quadro inteiro.
+        imageFormatGroup: ImageFormatGroup.nv21,
       );
 
       await controller.initialize();
