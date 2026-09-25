@@ -124,4 +124,32 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('as setas selecionam uma sugestão do auto-complete', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: CommunicatorScreen()));
+    await tester.pump();
+
+    for (final key in ['E', 'U', 'ESPAÇO', 'Q', 'U', 'E', 'R', 'O']) {
+      await tester.tap(find.text(key).last);
+      await tester.pump();
+    }
+
+    // Sobe do teclado para as sugestões e avança de BEBER para COMER.
+    await tester.tap(find.byIcon(Icons.keyboard_arrow_up));
+    await tester.pump();
+    await tester.tap(find.byIcon(Icons.keyboard_arrow_right));
+    await tester.pump();
+    await tester.tap(find.byIcon(Icons.check));
+    await tester.pump();
+
+    expect(
+      find.descendant(
+        of: find.byType(MessageBar),
+        matching: find.textContaining('EU QUERO COMER'),
+      ),
+      findsOneWidget,
+    );
+  });
 }

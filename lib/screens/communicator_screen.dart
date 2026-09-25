@@ -48,6 +48,7 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
   String _message = '';
   int _row = 0;
   int _column = 0;
+  int? _selectedSuggestion;
 
   List<String> get _suggestions => _wordPredictor.suggest(_message);
 
@@ -103,15 +104,22 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
   Future<void> _calibrate() async {
     final tracker = _tracker;
     if (tracker == null) return;
-    final result = await Navigator.of(context).push<({GazeMap map, double residual, int targets})>(
-      MaterialPageRoute(builder: (_) => CalibrationScreen(tracker: tracker)),
-    );
+    final result = await Navigator.of(context)
+        .push<({GazeMap map, double residual, int targets})>(
+          MaterialPageRoute(
+            builder: (_) => CalibrationScreen(tracker: tracker),
+          ),
+        );
     if (result == null || !mounted) return;
     setState(() => tracker.map = result.map);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text('Calibrado com ${result.targets} alvos · resíduo '
-          '${(result.residual * 100).toStringAsFixed(1)}% da tela'),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Calibrado com ${result.targets} alvos · resíduo '
+          '${(result.residual * 100).toStringAsFixed(1)}% da tela',
+        ),
+      ),
+    );
   }
 
   void _handleCommand(GazeCommand command) {
@@ -125,11 +133,31 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
       case GazeCommand.right:
         _moveColumn(1);
       case GazeCommand.select:
-        _pressKey(_row, _column);
+        final suggestionIndex = _selectedSuggestion;
+        if (suggestionIndex != null) {
+          _acceptSuggestion(_suggestions[suggestionIndex]);
+        } else {
+          _pressKey(_row, _column);
+        }
     }
   }
 
   void _moveRow(int delta) {
+    if (_selectedSuggestion != null) {
+      if (delta > 0) {
+        setState(() => _selectedSuggestion = null);
+      }
+      return;
+    }
+
+    if (delta < 0 &&
+        _row == 0 &&
+        _message.isNotEmpty &&
+        _suggestions.isNotEmpty) {
+      setState(() => _selectedSuggestion = 0);
+      return;
+    }
+
     final row = (_row + delta).clamp(0, kKeyboardRows.length - 1);
     setState(() {
       _row = row;
@@ -140,6 +168,17 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
   }
 
   void _moveColumn(int delta) {
+    final suggestionIndex = _selectedSuggestion;
+    if (suggestionIndex != null) {
+      setState(() {
+        _selectedSuggestion = (suggestionIndex + delta).clamp(
+          0,
+          _suggestions.length - 1,
+        );
+      });
+      return;
+    }
+
     setState(() {
       _column = (_column + delta).clamp(0, kKeyboardRows[_row].length - 1);
     });
@@ -150,6 +189,7 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
     setState(() {
       _row = row;
       _column = column;
+      _selectedSuggestion = null;
       switch (keyDef.action) {
         case KeyAction.character:
           _message += keyDef.label;
@@ -182,6 +222,7 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
         : '';
     setState(() {
       _message = '$prefix${suggestion.toUpperCase()} ';
+      _selectedSuggestion = null;
     });
   }
 
@@ -352,6 +393,7 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
             child: MessageBar(
               text: _message,
               suggestions: _suggestions,
+              selectedSuggestionIndex: _selectedSuggestion,
               onSuggestionTap: _acceptSuggestion,
             ),
           ),
@@ -372,11 +414,23 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
   Widget _gazeStatus() {
     final tracker = _tracker;
     final (IconData icon, String tip) = switch ((tracker, _gaze, _gazeError)) {
-      (_, _, final String e) when e.isNotEmpty => (Icons.error_outline, 'Falhou: \$e'),
+      (_, _, final String e) when e.isNotEmpty => (
+        Icons.error_outline,
+        'Falhou: \$e',
+      ),
       (null, _, _) => (Icons.hourglass_empty, 'Carregando o rastreador...'),
-      (_, final g?, _) when !g.faceFound => (Icons.face_retouching_off, 'Rosto não encontrado'),
-      (_, final g?, _) when g.eyesFound == 0 => (Icons.visibility_off, 'Pupilas não detectadas'),
-      (final t?, _, _) when t.map == null => (Icons.adjust, 'Detectando · toque para calibrar'),
+      (_, final g?, _) when !g.faceFound => (
+        Icons.face_retouching_off,
+        'Rosto não encontrado',
+      ),
+      (_, final g?, _) when g.eyesFound == 0 => (
+        Icons.visibility_off,
+        'Pupilas não detectadas',
+      ),
+      (final t?, _, _) when t.map == null => (
+        Icons.adjust,
+        'Detectando · toque para calibrar',
+      ),
       _ => (Icons.visibility, 'Rastreando · toque para recalibrar'),
     };
     return Tooltip(
@@ -389,6 +443,10 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
   }
 
   Widget _keyboard() {
-    return OnScreenKeyboard(row: _row, column: _column, onKeyTap: _pressKey);
+    return OnScreenKeyboard(
+      row: _selectedSuggestion == null ? _row : -1,
+      column: _column,
+      onKeyTap: _pressKey,
+    );
   }
 }

@@ -6,11 +6,13 @@ class MessageBar extends StatelessWidget {
     super.key,
     required this.text,
     this.suggestions = const [],
+    this.selectedSuggestionIndex,
     this.onSuggestionTap,
   });
 
   final String text;
   final List<String> suggestions;
+  final int? selectedSuggestionIndex;
   final ValueChanged<String>? onSuggestionTap;
 
   @override
@@ -53,11 +55,23 @@ class MessageBar extends StatelessWidget {
                 separatorBuilder: (_, __) => const SizedBox(width: 6),
                 itemBuilder: (context, index) {
                   final suggestion = visibleSuggestions[index];
+                  final selected = index == selectedSuggestionIndex;
                   return Semantics(
                     button: true,
+                    selected: selected,
                     label: 'Usar sugestão $suggestion',
                     child: ActionChip(
                       label: Text(suggestion.toUpperCase()),
+                      backgroundColor: selected ? scheme.primary : null,
+                      labelStyle: selected
+                          ? TextStyle(color: scheme.onPrimary)
+                          : null,
+                      side: selected
+                          ? BorderSide(
+                              color: scheme.onPrimaryContainer,
+                              width: 2,
+                            )
+                          : null,
                       onPressed: onSuggestionTap == null
                           ? null
                           : () => onSuggestionTap!(suggestion),
