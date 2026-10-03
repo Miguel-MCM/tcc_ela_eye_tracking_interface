@@ -26,6 +26,11 @@ android {
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
+        // O backend nativo escolhido para o sherpa-onnx é ARM64. Não empacote
+        // bibliotecas das demais arquiteturas no APK destinado ao tablet.
+        ndk {
+            abiFilters += "arm64-v8a"
+        }
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }

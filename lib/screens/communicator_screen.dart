@@ -11,6 +11,8 @@ import '../models/control_style.dart';
 import '../models/gaze_command.dart';
 import '../models/keyboard_layout.dart';
 import '../models/word_predictor.dart';
+import '../tts/pocket_tts_synthesizer.dart';
+import '../tts/speech_synthesizer.dart';
 import '../widgets/camera_view.dart';
 import '../widgets/direction_pad.dart';
 import '../widgets/edge_controls.dart';
@@ -24,9 +26,14 @@ import 'calibration_screen.dart';
 /// Toda a interação passa por [_handleCommand]. Quando o eye tracking entrar,
 /// basta ele chamar esse mesmo método — nada aqui precisa mudar.
 class CommunicatorScreen extends StatefulWidget {
-  const CommunicatorScreen({super.key, this.controlStyle = ControlStyle.edges});
+  const CommunicatorScreen({
+    super.key,
+    this.controlStyle = ControlStyle.edges,
+    this.synthesizer,
+  });
 
   final ControlStyle controlStyle;
+  final SpeechSynthesizer? synthesizer;
 
   @override
   State<CommunicatorScreen> createState() => _CommunicatorScreenState();
@@ -45,6 +52,8 @@ final double _keyboardAspectRatioTall = _keyboardAspectRatio / 1.4;
 
 class _CommunicatorScreenState extends State<CommunicatorScreen> {
   final _wordPredictor = WordPredictor.defaultModel();
+  late final SpeechSynthesizer _synthesizer;
+  late final bool _ownsSynthesizer;
   String _message = '';
   int _row = 0;
   int _column = 0;
@@ -58,12 +67,28 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
   GazeSample? _gaze;
   String? _gazeError;
 
+  SpeechSynthesizerState get _speechState => _synthesizer.state.value;
+
+  @override
+  void initState() {
+    super.initState();
+    _ownsSynthesizer = widget.synthesizer == null;
+    _synthesizer = widget.synthesizer ?? PocketTtsSynthesizer();
+    _synthesizer.state.addListener(_onSpeechStateChanged);
+  }
+
   @override
   void dispose() {
+    _synthesizer.state.removeListener(_onSpeechStateChanged);
+    if (_ownsSynthesizer) unawaited(_synthesizer.dispose());
     _commandSub?.cancel();
     _sampleSub?.cancel();
     _tracker?.dispose();
     super.dispose();
+  }
+
+  void _onSpeechStateChanged() {
+    if (mounted) setState(() {});
   }
 
   /// A câmera fica pronta depois da tela; o rastreador só pode ser ligado aqui.
@@ -186,6 +211,7 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
 
   void _pressKey(int row, int column) {
     final keyDef = kKeyboardRows[row][column];
+    final shouldSpeak = keyDef.action == KeyAction.speak;
     setState(() {
       _row = row;
       _column = column;
@@ -201,8 +227,28 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
           }
         case KeyAction.clear:
           _message = '';
+        case KeyAction.speak:
+          break;
       }
     });
+    if (shouldSpeak) unawaited(_speakMessage());
+  }
+
+  Future<void> _speakMessage() async {
+    final phrase = _message.trim();
+    if (phrase.isEmpty || _speechState.isBusy) return;
+
+    try {
+      await _synthesizer.speak(phrase);
+    } catch (error, stackTrace) {
+      debugPrint('[tts] falha ao falar: $error\n$stackTrace');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(content: Text('Não foi possível falar a mensagem: $error')),
+        );
+    }
   }
 
   void _acceptSuggestion(String suggestion) {
@@ -443,9 +489,18 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
   }
 
   Widget _keyboard() {
+    final speechState = _speechState;
+    final speakLabel = switch (speechState) {
+      SpeechSynthesizerState.preparing => 'CARREGANDO',
+      SpeechSynthesizerState.synthesizing => 'GERANDO',
+      SpeechSynthesizerState.playing => 'FALANDO',
+      _ => 'FALAR',
+    };
     return OnScreenKeyboard(
       row: _selectedSuggestion == null ? _row : -1,
       column: _column,
+      speakEnabled: _message.trim().isNotEmpty && !speechState.isBusy,
+      speakLabel: speakLabel,
       onKeyTap: _pressKey,
     );
   }

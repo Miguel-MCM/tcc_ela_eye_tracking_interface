@@ -1,11 +1,9 @@
 /// Tipo de ação de uma tecla.
-enum KeyAction { character, space, backspace, clear }
+enum KeyAction { character, space, backspace, clear, speak }
 
 /// Uma tecla do teclado na tela.
 class KeyDef {
-  const KeyDef.character(this.label)
-      : action = KeyAction.character,
-        flex = 1;
+  const KeyDef.character(this.label) : action = KeyAction.character, flex = 1;
 
   const KeyDef.special(this.label, this.action, {this.flex = 1});
 
@@ -18,7 +16,7 @@ class KeyDef {
   bool get isCharacter => action == KeyAction.character;
 }
 
-/// Layout QWERTY com uma linha final de teclas de edição.
+/// Layout QWERTY com uma linha final de ações.
 ///
 /// As linhas têm comprimentos diferentes; a navegação trata disso limitando a
 /// coluna ao tamanho da linha de destino.
@@ -56,6 +54,7 @@ const List<List<KeyDef>> kKeyboardRows = [
     KeyDef.character('M'),
   ],
   [
+    KeyDef.special('FALAR', KeyAction.speak, flex: 2),
     KeyDef.special('ESPAÇO', KeyAction.space, flex: 3),
     KeyDef.special('APAGAR', KeyAction.backspace, flex: 2),
     KeyDef.special('LIMPAR', KeyAction.clear, flex: 2),
