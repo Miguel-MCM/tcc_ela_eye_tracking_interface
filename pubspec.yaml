@@ -70,19 +70,11 @@ flutter:
     # treino coloca o modelo num domínio que ele nunca viu.
     - assets/models/pupil_128.tflite
     - assets/models/crop_params.json
-    # Gerados por tool/fetch_pocket_tts_model.py; os binários ficam fora do Git.
-    # Só entram no APK os arquivos usados em runtime (o encoder original e o
-    # tokenizer SentencePiece servem apenas para gerar os derivados).
-    - assets/models/pocket_tts_pt/manifest.json
-    - assets/models/pocket_tts_pt/NOTICE.md
-    - assets/models/pocket_tts_pt/flow_lm_flow_int8.onnx
-    - assets/models/pocket_tts_pt/flow_lm_main_int8.onnx
-    - assets/models/pocket_tts_pt/mimi_decoder_int8.onnx
-    - assets/models/pocket_tts_pt/mimi_encoder_bos_int8.onnx
-    - assets/models/pocket_tts_pt/text_conditioner_int8.onnx
-    - assets/models/pocket_tts_pt/vocab.json
-    - assets/models/pocket_tts_pt/token_scores.json
-    - assets/models/pocket_tts_pt/reference_voice.wav
+    # Gerados por tool/fetch_kokoro_model.py; os binários ficam fora do Git.
+    # O Flutter não inclui subdiretórios sozinho, por isso cada um é listado.
+    - assets/models/kokoro_pt/
+    - assets/models/kokoro_pt/espeak-ng-data/
+    - assets/models/kokoro_pt/espeak-ng-data/lang/roa/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

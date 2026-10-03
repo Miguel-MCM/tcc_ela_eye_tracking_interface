@@ -13,7 +13,7 @@ enum SpeechSynthesizerState {
       this == preparing || this == synthesizing || this == playing;
 }
 
-/// Contrato pequeno para a tela não depender do runtime Pocket TTS.
+/// Contrato pequeno para a tela não depender do runtime de síntese.
 ///
 /// Também permite usar um fake nos testes de widget, onde plugins nativos e o
 /// modelo ONNX não estão disponíveis.

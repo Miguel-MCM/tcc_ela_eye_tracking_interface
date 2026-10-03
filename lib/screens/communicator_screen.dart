@@ -11,7 +11,7 @@ import '../models/control_style.dart';
 import '../models/gaze_command.dart';
 import '../models/keyboard_layout.dart';
 import '../models/word_predictor.dart';
-import '../tts/pocket_tts_synthesizer.dart';
+import '../tts/kokoro_synthesizer.dart';
 import '../tts/speech_synthesizer.dart';
 import '../widgets/camera_view.dart';
 import '../widgets/direction_pad.dart';
@@ -73,7 +73,7 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
   void initState() {
     super.initState();
     _ownsSynthesizer = widget.synthesizer == null;
-    _synthesizer = widget.synthesizer ?? PocketTtsSynthesizer();
+    _synthesizer = widget.synthesizer ?? KokoroSynthesizer();
     _synthesizer.state.addListener(_onSpeechStateChanged);
   }
 

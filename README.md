@@ -4,46 +4,37 @@ Interface de comunicação por eye tracking para pacientes com ELA
 
 ## Síntese de voz offline
 
-O app usa o Pocket TTS em português por meio do `sherpa_onnx 1.13.8`. A
-inferência e a reprodução do WAV acontecem no próprio dispositivo, sem enviar a
-frase para um servidor. O runtime Android selecionado é `arm64-v8a`.
+O app usa o Kokoro v1.0 (FP32, voz `pf_dora` em português brasileiro) por meio
+do `sherpa_onnx 1.13.8`. A inferência e a reprodução do WAV acontecem no próprio
+dispositivo, sem enviar a frase para um servidor. O runtime Android selecionado
+é `arm64-v8a`.
 
-Os aproximadamente 147 MB do modelo INT8 não entram no Git. Antes de compilar o
-APK, prepare os assets a partir das revisões e hashes fixados no script:
+Os aproximadamente 355 MB do modelo não entram no Git. Antes de compilar o APK,
+prepare os assets a partir do pacote e dos hashes fixados no script (só usa a
+biblioteca padrão do Python):
 
 ```bash
-python3 -m venv .venv
-. .venv/bin/activate
-python3 -m pip install -r tool/requirements-pocket-tts.txt
-python3 tool/fetch_pocket_tts_model.py
+python3 tool/fetch_kokoro_model.py
 ```
 
 Para conferir um diretório já preparado sem acessar a rede:
 
 ```bash
-python3 tool/fetch_pocket_tts_model.py --verify-only
+python3 tool/fetch_kokoro_model.py --verify-only
 ```
 
-O resultado fica em `assets/models/pocket_tts_pt/` e é incluído no APK pelo
+O script baixa o pacote `kokoro-multi-lang-v1_0` do sherpa-onnx e extrai só o
+modelo, a tabela de vozes e o subconjunto do `espeak-ng-data` usado por `pt-br`.
+O resultado fica em `assets/models/kokoro_pt/` e é incluído no APK pelo
 `pubspec.yaml`. Downloads interrompidos usam arquivos `.part` e só substituem o
-destino depois da validação de tamanho e SHA-256. O script também gera
-`mimi_encoder_bos_int8.onnx`, que embute o embedding BOS exigido pelo bundle
-português antes da voz de referência; o sherpa-onnx não faz esse passo e, sem
-ele, a síntese sai como ruído. As fontes, modificações e
-licenças do modelo, da voz de referência e do runtime estão em
-`assets/models/pocket_tts_pt/NOTICE.md`.
+destino depois da validação de tamanho e SHA-256. As fontes e licenças do
+modelo, do espeak-ng e do runtime estão em `assets/models/kokoro_pt/NOTICE.md`.
 
-`PocketTtsSynthesizer` copia o bundle para o diretório privado somente quando o
+`KokoroSynthesizer` copia o bundle para o diretório privado somente quando o
 manifesto muda, mantém uma única instância nativa em uma isolate e devolve ao
 player um WAV temporário. Pedidos simultâneos são rejeitados para que comandos
 repetidos do dwell não sobreponham falas; `stop` e `dispose` também limpam a
 reprodução, a isolate e arquivos temporários.
-
-> A referência é a voz `rafael` (pt) do catálogo oficial do Pocket TTS. Ela fica
-> no repositório restrito `kyutai/pocket-tts`: aceite os termos na página do
-> modelo e defina `HF_TOKEN` (ou rode `hf auth login`) antes do script. A voz
-> pode ser trocada por uma gravação autorizada em português sem mudar o modelo
-> ou o runtime. Nunca use uma voz clonada sem consentimento explícito.
 
 ## Getting Started
 

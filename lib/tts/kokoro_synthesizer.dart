@@ -13,9 +13,9 @@ import 'speech_synthesizer.dart';
 
 typedef DirectoryProvider = Future<Directory> Function();
 
-/// Sintetizador Pocket TTS offline com inferência numa isolate persistente.
-class PocketTtsSynthesizer implements SpeechSynthesizer {
-  PocketTtsSynthesizer({
+/// Sintetizador Kokoro offline com inferência numa isolate persistente.
+class KokoroSynthesizer implements SpeechSynthesizer {
+  KokoroSynthesizer({
     AssetBundle? assetBundle,
     DirectoryProvider? supportDirectory,
     DirectoryProvider? temporaryDirectory,
@@ -23,17 +23,7 @@ class PocketTtsSynthesizer implements SpeechSynthesizer {
        _supportDirectory = supportDirectory ?? getApplicationSupportDirectory,
        _temporaryDirectory = temporaryDirectory ?? getTemporaryDirectory;
 
-  static const _assetRoot = 'assets/models/pocket_tts_pt';
-  static const _runtimeFiles = [
-    'flow_lm_flow_int8.onnx',
-    'flow_lm_main_int8.onnx',
-    'mimi_decoder_int8.onnx',
-    'mimi_encoder_bos_int8.onnx',
-    'text_conditioner_int8.onnx',
-    'vocab.json',
-    'token_scores.json',
-    'reference_voice.wav',
-  ];
+  static const _assetRoot = 'assets/models/kokoro_pt';
 
   final AssetBundle _assetBundle;
   final DirectoryProvider _supportDirectory;
@@ -79,7 +69,7 @@ class PocketTtsSynthesizer implements SpeechSynthesizer {
       final modelDirectory = await _materializeModel();
       final temporaryRoot = await _temporaryDirectory();
       _audioDirectory = Directory(
-        _join(temporaryRoot.path, 'pocket_tts_audio'),
+        _join(temporaryRoot.path, 'tts_audio'),
       );
       await _audioDirectory.create(recursive: true);
       await _removeStaleAudio();
@@ -220,7 +210,7 @@ class PocketTtsSynthesizer implements SpeechSynthesizer {
 
   Future<Directory> _materializeModel() async {
     final supportRoot = await _supportDirectory();
-    final destination = Directory(_join(supportRoot.path, 'pocket_tts_pt'));
+    final destination = Directory(_join(supportRoot.path, 'kokoro_pt'));
     await destination.create(recursive: true);
 
     final assetManifest = await _assetBundle.loadString(
@@ -231,7 +221,7 @@ class PocketTtsSynthesizer implements SpeechSynthesizer {
       return destination;
     }
 
-    for (final filename in _runtimeFiles) {
+    for (final filename in _manifestFiles(assetManifest).keys) {
       await _copyAsset(
         '$_assetRoot/$filename',
         File(_join(destination.path, filename)),
@@ -249,17 +239,20 @@ class PocketTtsSynthesizer implements SpeechSynthesizer {
     if (!await localManifest.exists()) return false;
     if (await localManifest.readAsString() != assetManifest) return false;
 
-    final manifest = jsonDecode(assetManifest) as Map<String, Object?>;
-    final sources = manifest['sources']! as Map<String, Object?>;
-    final generated = manifest['generated']! as Map<String, Object?>;
-    for (final filename in _runtimeFiles) {
-      final metadata =
-          (sources[filename] ?? generated[filename])! as Map<String, Object?>;
+    for (final MapEntry(key: filename, value: metadata)
+        in _manifestFiles(assetManifest).entries) {
       final file = File(_join(destination.path, filename));
       if (!await file.exists()) return false;
       if (await file.length() != metadata['size'] as int) return false;
     }
     return true;
+  }
+
+  static Map<String, Map<String, Object?>> _manifestFiles(String manifest) {
+    final files =
+        (jsonDecode(manifest) as Map<String, Object?>)['files']!
+            as Map<String, Object?>;
+    return files.cast<String, Map<String, Object?>>();
   }
 
   Future<void> _copyAsset(String assetPath, File destination) async {
@@ -275,6 +268,7 @@ class PocketTtsSynthesizer implements SpeechSynthesizer {
     File destination,
     List<int> bytes,
   ) async {
+    await destination.parent.create(recursive: true);
     final temporary = File('${destination.path}.part');
     await temporary.writeAsBytes(bytes, flush: true);
     if (await destination.exists()) await destination.delete();
@@ -306,12 +300,12 @@ class PocketTtsSynthesizer implements SpeechSynthesizer {
       _handleWorkerMessage,
     );
     _worker = await Isolate.spawn<Map<String, Object?>>(
-      _pocketTtsWorker,
+      _kokoroWorker,
       {'replyTo': receivePort.sendPort, 'modelDirectory': modelDirectory.path},
       onError: receivePort.sendPort,
       onExit: receivePort.sendPort,
       errorsAreFatal: true,
-      debugName: 'pocket-tts',
+      debugName: 'kokoro-tts',
     );
     await _workerReady!.future;
   }
@@ -372,7 +366,7 @@ class PocketTtsSynthesizer implements SpeechSynthesizer {
   ]) {
     final port = _workerPort;
     if (port == null) {
-      throw StateError('o runtime Pocket TTS ainda não foi inicializado');
+      throw StateError('o runtime Kokoro ainda não foi inicializado');
     }
     final id = _nextRequestId++;
     final completer = Completer<Object?>();
@@ -402,14 +396,20 @@ class PocketTtsSynthesizer implements SpeechSynthesizer {
     }
   }
 
+  /// [child] usa `/` como nos caminhos de asset.
   static String _join(String parent, String child) =>
-      '$parent${Platform.pathSeparator}$child';
+      '$parent${Platform.pathSeparator}'
+      '${child.replaceAll('/', Platform.pathSeparator)}';
 }
 
-/// Mantém os modelos nativos vivos fora da isolate da interface.
-Future<void> _pocketTtsWorker(Map<String, Object?> bootstrap) async {
+/// Voz `pf_dora` (português brasileiro, feminina) na tabela do Kokoro v1.0.
+const _voiceId = 42;
+
+/// Mantém o modelo nativo vivo fora da isolate da interface.
+Future<void> _kokoroWorker(Map<String, Object?> bootstrap) async {
   final replyTo = bootstrap['replyTo']! as SendPort;
   final modelDirectory = bootstrap['modelDirectory']! as String;
+  String path(String name) => KokoroSynthesizer._join(modelDirectory, name);
   sherpa.OfflineTts? tts;
 
   try {
@@ -417,33 +417,12 @@ Future<void> _pocketTtsWorker(Map<String, Object?> bootstrap) async {
     tts = sherpa.OfflineTts(
       sherpa.OfflineTtsConfig(
         model: sherpa.OfflineTtsModelConfig(
-          pocket: sherpa.OfflineTtsPocketModelConfig(
-            lmFlow: PocketTtsSynthesizer._join(
-              modelDirectory,
-              'flow_lm_flow_int8.onnx',
-            ),
-            lmMain: PocketTtsSynthesizer._join(
-              modelDirectory,
-              'flow_lm_main_int8.onnx',
-            ),
-            encoder: PocketTtsSynthesizer._join(
-              modelDirectory,
-              'mimi_encoder_bos_int8.onnx',
-            ),
-            decoder: PocketTtsSynthesizer._join(
-              modelDirectory,
-              'mimi_decoder_int8.onnx',
-            ),
-            textConditioner: PocketTtsSynthesizer._join(
-              modelDirectory,
-              'text_conditioner_int8.onnx',
-            ),
-            vocabJson: PocketTtsSynthesizer._join(modelDirectory, 'vocab.json'),
-            tokenScoresJson: PocketTtsSynthesizer._join(
-              modelDirectory,
-              'token_scores.json',
-            ),
-            voiceEmbeddingCacheCapacity: 1,
+          kokoro: sherpa.OfflineTtsKokoroModelConfig(
+            model: path('model.onnx'),
+            voices: path('voices.bin'),
+            tokens: path('tokens.txt'),
+            dataDir: path('espeak-ng-data'),
+            lang: 'pt-br',
           ),
           numThreads: 2,
           debug: false,
@@ -451,13 +430,6 @@ Future<void> _pocketTtsWorker(Map<String, Object?> bootstrap) async {
         ),
       ),
     );
-
-    final reference = sherpa.readWave(
-      PocketTtsSynthesizer._join(modelDirectory, 'reference_voice.wav'),
-    );
-    if (reference.samples.isEmpty || reference.sampleRate == 0) {
-      throw StateError('não foi possível ler a voz de referência');
-    }
 
     final commands = ReceivePort();
     replyTo.send({'type': 'ready', 'port': commands.sendPort});
@@ -467,20 +439,12 @@ Future<void> _pocketTtsWorker(Map<String, Object?> bootstrap) async {
       try {
         switch (message['command']) {
           case 'synthesize':
-            final audio = tts.generateWithConfig(
+            final audio = tts.generate(
               text: message['text']! as String,
-              config: sherpa.OfflineTtsGenerationConfig(
-                referenceAudio: reference.samples,
-                referenceSampleRate: reference.sampleRate,
-                numSteps: 1,
-                extra: const {
-                  'max_reference_audio_len': 12,
-                  'temperature': 0.1,
-                },
-              ),
+              sid: _voiceId,
             );
             if (audio.samples.isEmpty || audio.sampleRate == 0) {
-              throw StateError('o Pocket TTS não gerou áudio');
+              throw StateError('o Kokoro não gerou áudio');
             }
 
             debugPrint(

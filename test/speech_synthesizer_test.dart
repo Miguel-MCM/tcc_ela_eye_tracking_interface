@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tcc_ela_eye_tracking_interface/tts/pocket_tts_synthesizer.dart';
+import 'package:tcc_ela_eye_tracking_interface/tts/kokoro_synthesizer.dart';
 import 'package:tcc_ela_eye_tracking_interface/tts/speech_synthesizer.dart';
 
 void main() {
@@ -12,7 +12,7 @@ void main() {
   });
 
   test('frase vazia é rejeitada sem inicializar o runtime', () async {
-    final synthesizer = PocketTtsSynthesizer();
+    final synthesizer = KokoroSynthesizer();
 
     expect(() => synthesizer.speak('   '), throwsArgumentError);
     expect(synthesizer.state.value, SpeechSynthesizerState.idle);

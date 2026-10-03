@@ -45,7 +45,7 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Pocket TTS — baixado de revisões fixas e verificado por SHA-256.
+# Kokoro — baixado de um pacote fixo e verificado por SHA-256.
 # Os avisos de licença permanecem versionados e o pipeline recria o restante.
-/assets/models/pocket_tts_pt/*
-!/assets/models/pocket_tts_pt/NOTICE.md
+/assets/models/kokoro_pt/*
+!/assets/models/kokoro_pt/NOTICE.md
