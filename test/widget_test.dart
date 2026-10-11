@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -5,11 +6,38 @@ import 'package:tcc_ela_eye_tracking_interface/main.dart';
 import 'package:tcc_ela_eye_tracking_interface/models/control_style.dart';
 import 'package:tcc_ela_eye_tracking_interface/models/word_predictor.dart';
 import 'package:tcc_ela_eye_tracking_interface/screens/communicator_screen.dart';
+import 'package:tcc_ela_eye_tracking_interface/tts/speech_synthesizer.dart';
 import 'package:tcc_ela_eye_tracking_interface/widgets/message_bar.dart';
 
 /// Texto atualmente na faixa de mensagem (ignora as teclas de mesmo rótulo).
 Finder messageText(String text) =>
     find.descendant(of: find.byType(MessageBar), matching: find.text(text));
+
+class _FakeSpeechSynthesizer implements SpeechSynthesizer {
+  final ValueNotifier<SpeechSynthesizerState> notifier = ValueNotifier(
+    SpeechSynthesizerState.idle,
+  );
+  final spoken = <String>[];
+
+  @override
+  ValueListenable<SpeechSynthesizerState> get state => notifier;
+
+  @override
+  Future<void> initialize() async {}
+
+  @override
+  Future<void> speak(String text) async {
+    spoken.add(text);
+  }
+
+  @override
+  Future<void> stop() async {}
+
+  @override
+  Future<void> dispose() async {
+    notifier.value = SpeechSynthesizerState.disposed;
+  }
+}
 
 void main() {
   // A câmera não existe no ambiente de teste; CameraView cai no estado de erro
@@ -59,7 +87,7 @@ void main() {
         await pump(tester);
 
         // Última coluna da primeira linha (P), depois desce para a linha
-        // final, que só tem três teclas.
+        // final, que só tem quatro teclas.
         for (var i = 0; i < 9; i++) {
           await tester.tap(find.byIcon(Icons.keyboard_arrow_right));
           await tester.pump();
@@ -87,6 +115,33 @@ void main() {
         await tester.tap(find.text('APAGAR'));
         await tester.pump();
         expect(messageText('O'), findsOneWidget);
+      });
+
+      testWidgets('FALAR usa a frase sem apagá-la', (tester) async {
+        final synthesizer = _FakeSpeechSynthesizer();
+        await tester.pumpWidget(
+          MaterialApp(
+            home: CommunicatorScreen(
+              controlStyle: style,
+              synthesizer: synthesizer,
+            ),
+          ),
+        );
+        await tester.pump();
+
+        // Confirma Q, desce até FALAR e confirma novamente. É o mesmo caminho
+        // que os comandos emitidos pelo rastreador de olhar percorrem.
+        await tester.tap(find.byIcon(Icons.check));
+        await tester.pump();
+        for (var i = 0; i < 3; i++) {
+          await tester.tap(find.byIcon(Icons.keyboard_arrow_down));
+          await tester.pump();
+        }
+        await tester.tap(find.byIcon(Icons.check));
+        await tester.pump();
+
+        expect(synthesizer.spoken, ['Q']);
+        expect(messageText('Q'), findsOneWidget);
       });
     });
   }
@@ -151,5 +206,23 @@ void main() {
       ),
       findsOneWidget,
     );
+  });
+
+  testWidgets('a tecla FALAR mostra o estado do sintetizador', (tester) async {
+    final synthesizer = _FakeSpeechSynthesizer();
+    await tester.pumpWidget(
+      MaterialApp(home: CommunicatorScreen(synthesizer: synthesizer)),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('Q').last);
+    await tester.pump();
+    synthesizer.notifier.value = SpeechSynthesizerState.synthesizing;
+    await tester.pump();
+    expect(find.text('GERANDO'), findsOneWidget);
+
+    synthesizer.notifier.value = SpeechSynthesizerState.playing;
+    await tester.pump();
+    expect(find.text('FALANDO'), findsOneWidget);
   });
 }

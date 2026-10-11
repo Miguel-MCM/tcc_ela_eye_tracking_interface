@@ -30,6 +30,7 @@ migrate_working_dir/
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
+.venv/
 /build/
 /coverage/
 
@@ -43,3 +44,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Kokoro — baixado de um pacote fixo e verificado por SHA-256.
+# Os avisos de licença permanecem versionados e o pipeline recria o restante.
+/assets/models/kokoro_pt/*
+!/assets/models/kokoro_pt/NOTICE.md

@@ -2,6 +2,40 @@
 
 Interface de comunicação por eye tracking para pacientes com ELA
 
+## Síntese de voz offline
+
+O app usa o Kokoro v1.0 (FP32, voz `pf_dora` em português brasileiro) por meio
+do `sherpa_onnx 1.13.8`. A inferência e a reprodução do WAV acontecem no próprio
+dispositivo, sem enviar a frase para um servidor. O runtime Android selecionado
+é `arm64-v8a`.
+
+Os aproximadamente 355 MB do modelo não entram no Git. Antes de compilar o APK,
+prepare os assets a partir do pacote e dos hashes fixados no script (só usa a
+biblioteca padrão do Python):
+
+```bash
+python3 tool/fetch_kokoro_model.py
+```
+
+Para conferir um diretório já preparado sem acessar a rede:
+
+```bash
+python3 tool/fetch_kokoro_model.py --verify-only
+```
+
+O script baixa o pacote `kokoro-multi-lang-v1_0` do sherpa-onnx e extrai só o
+modelo, a tabela de vozes e o subconjunto do `espeak-ng-data` usado por `pt-br`.
+O resultado fica em `assets/models/kokoro_pt/` e é incluído no APK pelo
+`pubspec.yaml`. Downloads interrompidos usam arquivos `.part` e só substituem o
+destino depois da validação de tamanho e SHA-256. As fontes e licenças do
+modelo, do espeak-ng e do runtime estão em `assets/models/kokoro_pt/NOTICE.md`.
+
+`KokoroSynthesizer` copia o bundle para o diretório privado somente quando o
+manifesto muda, mantém uma única instância nativa em uma isolate e devolve ao
+player um WAV temporário. Pedidos simultâneos são rejeitados para que comandos
+repetidos do dwell não sobreponham falas; `stop` e `dispose` também limpam a
+reprodução, a isolate e arquivos temporários.
+
 ## Getting Started
 
 This project is a starting point for a Flutter application.
