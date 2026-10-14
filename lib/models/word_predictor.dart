@@ -1,7 +1,11 @@
-/// Sugere a próxima palavra usando probabilidades de um modelo n-grama.
+import 'dart:convert';
+
+import 'package:flutter/services.dart';
+
+/// Suggests the next word using probabilities from an n-gram model.
 ///
-/// O modelo trigram usa as duas últimas palavras completas como contexto.
-/// O corpus pode ser substituído por frases coletadas do usuário no futuro.
+/// The trigram model uses the two last complete words as context.
+/// The corpus can be replaced with phrases collected from the user in the future.
 class WordPredictor {
   WordPredictor({required Iterable<String> phrases, this.order = 3})
     : assert(order >= 2),
@@ -10,7 +14,7 @@ class WordPredictor {
   final int order;
   final Map<String, Map<String, int>> _counts;
 
-  /// Corpus inicial pequeno e editável, inspirado nas frases do protótipo NLTK.
+  /// Initial editable corpus, inspired by the NLTK prototype phrases.
   static const defaultPhrases = [
     'eu quero beber água',
     'eu quero beber café',
@@ -29,14 +33,25 @@ class WordPredictor {
     'quero falar com meu pai',
   ];
 
-  factory WordPredictor.defaultModel() {
-    return WordPredictor(phrases: defaultPhrases);
+  /// Loads the default phrases and the additional phrases from JSON assets.
+  static Future<WordPredictor> defaultModel() async {
+    final phrases = <String>[...defaultPhrases];
+
+    for (var index = 1; index <= 5; index++) {
+      final path = 'assets/phrases/frases_AAC_$index.json';
+      final content = await rootBundle.loadString(path);
+      final decoded = jsonDecode(content) as List<dynamic>;
+
+      phrases.addAll(decoded.cast<String>());
+    }
+
+    return WordPredictor(phrases: phrases);
   }
 
-  /// Retorna as palavras mais prováveis para o texto atual.
+  /// Returns the most likely words for the current text.
   ///
-  /// Quando o texto termina no meio de uma palavra, essa parte é usada como
-  /// filtro. Caso contrário, o modelo considera as últimas palavras completas.
+  /// When the text ends in the middle of a word, that part is used as a
+  /// filter. Otherwise, the model considers the last complete words.
   List<String> suggest(String text, {int limit = 3}) {
     final normalized = text.trim().toLowerCase();
     final words = normalized.isEmpty
@@ -50,8 +65,8 @@ class WordPredictor {
     var context = fullContext;
     var candidates = _counts[_contextKey(context)] ?? const <String, int>{};
 
-    // Sem espaço final, a última palavra pode ainda ser um prefixo. Primeiro
-    // tentamos tratá-la como completa para que "eu quero" já sugira "beber".
+    // Without a trailing space, the last word may still be a prefix. First
+    // try treating it as complete so that "eu quero" already suggests "beber".
     if (candidates.isEmpty && !text.endsWith(' ') && words.isNotEmpty) {
       partial = words.removeLast();
       context = words.length > contextSize

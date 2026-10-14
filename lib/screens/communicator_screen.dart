@@ -51,7 +51,7 @@ final double _keyboardAspectRatio =
 final double _keyboardAspectRatioTall = _keyboardAspectRatio / 1.4;
 
 class _CommunicatorScreenState extends State<CommunicatorScreen> {
-  final _wordPredictor = WordPredictor.defaultModel();
+  WordPredictor? _wordPredictor;
   late final SpeechSynthesizer _synthesizer;
   late final bool _ownsSynthesizer;
   String _message = '';
@@ -59,7 +59,8 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
   int _column = 0;
   int? _selectedSuggestion;
 
-  List<String> get _suggestions => _wordPredictor.suggest(_message);
+  List<String> get _suggestions =>
+      _wordPredictor?.suggest(_message) ?? const <String>[];
 
   GazeTracker? _tracker;
   StreamSubscription<GazeCommand>? _commandSub;
@@ -75,6 +76,17 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
     _ownsSynthesizer = widget.synthesizer == null;
     _synthesizer = widget.synthesizer ?? KokoroSynthesizer();
     _synthesizer.state.addListener(_onSpeechStateChanged);
+    _loadWordPredictor();
+  }
+
+  Future<void> _loadWordPredictor() async {
+    try {
+      final predictor = await WordPredictor.defaultModel();
+      if (!mounted) return;
+      setState(() => _wordPredictor = predictor);
+    } catch (error, stackTrace) {
+      debugPrint('[word_predictor] falha ao carregar frases: $error\\n$stackTrace');
+    }
   }
 
   @override
@@ -252,8 +264,11 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
   }
 
   void _acceptSuggestion(String suggestion) {
+    final predictor = _wordPredictor;
+    if (predictor == null) return;
+
     final endsWithSpace = _message.endsWith(' ');
-    final completesCurrentWord = _wordPredictor
+    final completesCurrentWord = predictor
         .suggest('$_message ')
         .contains(suggestion);
     final words = _message.trimRight().split(RegExp(r'\s+'));
