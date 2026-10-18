@@ -154,7 +154,7 @@ void main() {
   });
 
   test('o modelo recomenda a próxima palavra pelo contexto', () {
-    final predictor = WordPredictor.defaultModel();
+    final predictor = WordPredictor(phrases: WordPredictor.defaultPhrases);
 
     expect(predictor.suggest('eu quero'), contains('beber'));
     expect(predictor.suggest('eu quero b'), contains('beber'));
