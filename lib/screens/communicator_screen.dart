@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import '../gaze/gaze_mapper.dart';
 import '../gaze/gaze_tracker.dart';
 import '../gaze/pupil_detector.dart';
+import '../metrics/typing_event.dart';
+import '../metrics/typing_metrics_recorder.dart';
 import '../models/control_style.dart';
 import '../models/gaze_command.dart';
 import '../models/keyboard_layout.dart';
@@ -30,10 +32,14 @@ class CommunicatorScreen extends StatefulWidget {
     super.key,
     this.controlStyle = ControlStyle.edges,
     this.synthesizer,
+    this.metricsRecorder,
   });
 
   final ControlStyle controlStyle;
   final SpeechSynthesizer? synthesizer;
+
+  /// Recebe a digitação para as métricas; sem ele, a tela cria e grava o seu.
+  final TypingMetricsRecorder? metricsRecorder;
 
   @override
   State<CommunicatorScreen> createState() => _CommunicatorScreenState();
@@ -54,6 +60,8 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
   WordPredictor? _wordPredictor;
   late final SpeechSynthesizer _synthesizer;
   late final bool _ownsSynthesizer;
+  late final TypingMetricsRecorder _metrics;
+  late final bool _ownsMetrics;
   String _message = '';
   int _row = 0;
   int _column = 0;
@@ -76,6 +84,8 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
     _ownsSynthesizer = widget.synthesizer == null;
     _synthesizer = widget.synthesizer ?? KokoroSynthesizer();
     _synthesizer.state.addListener(_onSpeechStateChanged);
+    _ownsMetrics = widget.metricsRecorder == null;
+    _metrics = widget.metricsRecorder ?? TypingMetricsRecorder();
     _loadWordPredictor();
   }
 
@@ -84,8 +94,11 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
       final predictor = await WordPredictor.defaultModel();
       if (!mounted) return;
       setState(() => _wordPredictor = predictor);
+      _recordSuggestions();
     } catch (error, stackTrace) {
-      debugPrint('[word_predictor] falha ao carregar frases: $error\\n$stackTrace');
+      debugPrint(
+        '[word_predictor] falha ao carregar frases: $error\\n$stackTrace',
+      );
     }
   }
 
@@ -93,6 +106,7 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
   void dispose() {
     _synthesizer.state.removeListener(_onSpeechStateChanged);
     if (_ownsSynthesizer) unawaited(_synthesizer.dispose());
+    if (_ownsMetrics && _metrics.events.isNotEmpty) unawaited(_metrics.save());
     _commandSub?.cancel();
     _sampleSub?.cancel();
     _tracker?.dispose();
@@ -121,7 +135,9 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
       );
       // O rastreador emite exatamente os mesmos comandos das setas, então entra
       // por _handleCommand sem que nada na interface precise mudar.
-      _commandSub = tracker.commands.listen(_handleCommand);
+      _commandSub = tracker.commands.listen(
+        (command) => _handleCommand(command, source: InputSource.gaze),
+      );
       _sampleSub = tracker.samples.listen((s) {
         if (mounted) setState(() => _gaze = s);
       });
@@ -159,7 +175,12 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
     );
   }
 
-  void _handleCommand(GazeCommand command) {
+  /// Os botões na tela chamam isto direto, então o padrão é [InputSource.touch].
+  void _handleCommand(
+    GazeCommand command, {
+    InputSource source = InputSource.touch,
+  }) {
+    _metrics.recordCommand(command, source);
     switch (command) {
       case GazeCommand.up:
         _moveRow(-1);
@@ -243,7 +264,33 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
           break;
       }
     });
-    if (shouldSpeak) unawaited(_speakMessage());
+    _metrics.recordKey(keyDef, row, column, _message);
+    _recordSuggestions();
+    if (shouldSpeak) {
+      unawaited(_speakMessage());
+      // Cada frase falada fecha uma unidade de análise; gravar aqui evita
+      // perder a sessão se o app for encerrado.
+      unawaited(_metrics.save());
+    }
+  }
+
+  /// Toque direto numa tecla: conta como uma seleção, sem navegação.
+  void _tapKey(int row, int column) {
+    _metrics.recordCommand(GazeCommand.select, InputSource.touch);
+    _pressKey(row, column);
+  }
+
+  void _tapSuggestion(String suggestion) {
+    _metrics.recordCommand(GazeCommand.select, InputSource.touch);
+    _acceptSuggestion(suggestion);
+  }
+
+  /// A barra só mostra sugestões quando há mensagem.
+  void _recordSuggestions() {
+    _metrics.recordSuggestions(
+      _message,
+      _message.isEmpty ? const [] : _suggestions,
+    );
   }
 
   Future<void> _speakMessage() async {
@@ -267,6 +314,7 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
     final predictor = _wordPredictor;
     if (predictor == null) return;
 
+    final rank = _suggestions.indexOf(suggestion);
     final endsWithSpace = _message.endsWith(' ');
     final completesCurrentWord = predictor
         .suggest('$_message ')
@@ -285,6 +333,8 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
       _message = '$prefix${suggestion.toUpperCase()} ';
       _selectedSuggestion = null;
     });
+    _metrics.recordAcceptance(suggestion, rank, _message);
+    _recordSuggestions();
   }
 
   @override
@@ -455,7 +505,7 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
               text: _message,
               suggestions: _suggestions,
               selectedSuggestionIndex: _selectedSuggestion,
-              onSuggestionTap: _acceptSuggestion,
+              onSuggestionTap: _tapSuggestion,
             ),
           ),
           const SizedBox(width: 12),
@@ -516,7 +566,7 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
       column: _column,
       speakEnabled: _message.trim().isNotEmpty && !speechState.isBusy,
       speakLabel: speakLabel,
-      onKeyTap: _pressKey,
+      onKeyTap: _tapKey,
     );
   }
 }
