@@ -85,7 +85,18 @@ class WordPredictor {
   ///
   /// When the text ends in the middle of a word, that part is used as a
   /// filter. Otherwise, the model considers the last complete words.
-  List<String> suggest(String text, {int limit = 3}) {
+  List<String> suggest(String text, {int limit = 3}) =>
+      predict(text, limit: limit).words;
+
+  /// Like [suggest], but also tells whether the words complete the last word
+  /// of [text] (`completesLastWord`) or come after it as the next word.
+  ///
+  /// Only the model knows which case it chose, so whoever inserts a
+  /// suggestion must ask here instead of guessing from the text.
+  ({List<String> words, bool completesLastWord}) predict(
+    String text, {
+    int limit = 3,
+  }) {
     final words = _tokenize(text).map(normalize).toList();
     final contextSize = order - 1;
     var history = _pad(words);
@@ -108,10 +119,13 @@ class WordPredictor {
         return byScore != 0 ? byScore : a.key.compareTo(b.key);
       });
 
-    return sorted
-        .take(limit)
-        .map((entry) => _displayForms[entry.key] ?? entry.key)
-        .toList();
+    return (
+      words: sorted
+          .take(limit)
+          .map((entry) => _displayForms[entry.key] ?? entry.key)
+          .toList(),
+      completesLastWord: partial.isNotEmpty,
+    );
   }
 
   /// Stupid Backoff scores for the words that start with [partial].

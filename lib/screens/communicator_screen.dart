@@ -33,10 +33,14 @@ class CommunicatorScreen extends StatefulWidget {
     this.controlStyle = ControlStyle.edges,
     this.synthesizer,
     this.metricsRecorder,
+    this.wordPredictor,
   });
 
   final ControlStyle controlStyle;
   final SpeechSynthesizer? synthesizer;
+
+  /// Modelo de sugestões; sem ele, a tela carrega o padrão dos assets.
+  final WordPredictor? wordPredictor;
 
   /// Recebe a digitação para as métricas; sem ele, a tela cria e grava o seu.
   final TypingMetricsRecorder? metricsRecorder;
@@ -86,7 +90,8 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
     _synthesizer.state.addListener(_onSpeechStateChanged);
     _ownsMetrics = widget.metricsRecorder == null;
     _metrics = widget.metricsRecorder ?? TypingMetricsRecorder();
-    _loadWordPredictor();
+    _wordPredictor = widget.wordPredictor;
+    if (_wordPredictor == null) _loadWordPredictor();
   }
 
   Future<void> _loadWordPredictor() async {
@@ -314,21 +319,16 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
     final predictor = _wordPredictor;
     if (predictor == null) return;
 
-    final rank = _suggestions.indexOf(suggestion);
-    final endsWithSpace = _message.endsWith(' ');
-    final completesCurrentWord = predictor
-        .suggest('$_message ')
-        .contains(suggestion);
-    final words = _message.trimRight().split(RegExp(r'\s+'));
-    final prefix = endsWithSpace
-        ? _message
-        : completesCurrentWord
-        ? '${_message.trim()} '
-        : _message.trim().isEmpty
+    final prediction = predictor.predict(_message);
+    final rank = prediction.words.indexOf(suggestion);
+    // Só o modelo sabe se a última palavra estava pela metade: deduzir isso
+    // do texto confunde "D" + "de" com "D" seguido da palavra "de".
+    final kept = _message.trimRight();
+    final prefix = prediction.completesLastWord
+        ? kept.replaceFirst(_lastWord, '')
+        : kept.isEmpty
         ? ''
-        : words.length > 1
-        ? '${words.sublist(0, words.length - 1).join(' ')} '
-        : '';
+        : '$kept ';
     setState(() {
       _message = '$prefix${suggestion.toUpperCase()} ';
       _selectedSuggestion = null;
@@ -336,6 +336,8 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
     _metrics.recordAcceptance(suggestion, rank, _message);
     _recordSuggestions();
   }
+
+  static final _lastWord = RegExp(r'\S+$');
 
   @override
   Widget build(BuildContext context) {

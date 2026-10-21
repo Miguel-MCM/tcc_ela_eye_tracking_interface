@@ -160,8 +160,21 @@ void main() {
     expect(predictor.suggest('eu quero b'), contains('beber'));
   });
 
+  // O modelo padrão vem dos assets de forma assíncrona e não termina de
+  // carregar num teste; um modelo pronto deixa as sugestões disponíveis.
+  final defaultPredictor = WordPredictor(phrases: WordPredictor.defaultPhrases);
+
+  Future<void> typeKeys(WidgetTester tester, List<String> keys) async {
+    for (final key in keys) {
+      await tester.tap(find.text(key).last);
+      await tester.pump();
+    }
+  }
+
   testWidgets('uma sugestão completa a palavra atual', (tester) async {
-    await tester.pumpWidget(const MaterialApp(home: CommunicatorScreen()));
+    await tester.pumpWidget(
+      MaterialApp(home: CommunicatorScreen(wordPredictor: defaultPredictor)),
+    );
     await tester.pump();
 
     for (final key in ['E', 'U', 'ESPAÇO', 'Q', 'U', 'E', 'R', 'O']) {
@@ -183,7 +196,9 @@ void main() {
   testWidgets('as setas selecionam uma sugestão do auto-complete', (
     tester,
   ) async {
-    await tester.pumpWidget(const MaterialApp(home: CommunicatorScreen()));
+    await tester.pumpWidget(
+      MaterialApp(home: CommunicatorScreen(wordPredictor: defaultPredictor)),
+    );
     await tester.pump();
 
     for (final key in ['E', 'U', 'ESPAÇO', 'Q', 'U', 'E', 'R', 'O']) {
@@ -206,6 +221,28 @@ void main() {
       ),
       findsOneWidget,
     );
+  });
+
+  testWidgets('sugestão que também é uma palavra frequente completa a palavra '
+      'pela metade', (tester) async {
+    // "de" é a palavra mais frequente: depois de "D " ela seria sugerida
+    // como próxima palavra, mas em "EU QUERO D" ela completa o "D".
+    final predictor = WordPredictor(
+      phrases: ['eu quero dormir', 'preciso de ajuda', 'gosto de café'],
+    );
+    await tester.pumpWidget(
+      MaterialApp(home: CommunicatorScreen(wordPredictor: predictor)),
+    );
+    await tester.pump();
+
+    await typeKeys(tester, [
+      'E', 'U', 'ESPAÇO', 'Q', 'U', 'E', 'R', 'O', 'ESPAÇO', 'D', //
+    ]);
+    expect(predictor.suggest('EU QUERO D '), contains('de'));
+    await tester.tap(find.text('DE'));
+    await tester.pump();
+
+    expect(messageText('EU QUERO DE '), findsOneWidget);
   });
 
   testWidgets('a tecla FALAR mostra o estado do sintetizador', (tester) async {

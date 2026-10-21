@@ -83,4 +83,28 @@ void main() {
       expect(predictor.suggest('XYZ BAN'), ['banheiro']);
     });
   });
+
+  group('predict', () {
+    final predictor = WordPredictor(
+      phrases: ['eu quero dormir', 'preciso de ajuda', 'gosto de café'],
+    );
+
+    test('palavra pela metade é completada', () {
+      final prediction = predictor.predict('EU QUERO D');
+
+      expect(prediction.completesLastWord, isTrue);
+      expect(prediction.words, ['dormir', 'de']);
+    });
+
+    test('contexto conhecido sem espaço sugere a próxima palavra', () {
+      final prediction = predictor.predict('EU QUERO');
+
+      expect(prediction.completesLastWord, isFalse);
+      expect(prediction.words.first, 'dormir');
+    });
+
+    test('depois de um espaço sugere a próxima palavra', () {
+      expect(predictor.predict('EU QUERO D ').completesLastWord, isFalse);
+    });
+  });
 }
