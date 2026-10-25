@@ -216,10 +216,7 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
       return;
     }
 
-    if (delta < 0 &&
-        _row == 0 &&
-        _message.isNotEmpty &&
-        _suggestions.isNotEmpty) {
+    if (delta < 0 && _row == 0 && _suggestions.isNotEmpty) {
       setState(() => _selectedSuggestion = 0);
       return;
     }
@@ -293,12 +290,8 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
     _acceptSuggestion(suggestion);
   }
 
-  /// A barra só mostra sugestões quando há mensagem.
   void _recordSuggestions() {
-    _metrics.recordSuggestions(
-      _message,
-      _message.isEmpty ? const [] : _suggestions,
-    );
+    _metrics.recordSuggestions(_message, _suggestions);
   }
 
   Future<void> _speakMessage() async {
@@ -324,10 +317,10 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
 
     final prediction = predictor.predict(_message);
     final rank = prediction.words.indexOf(suggestion);
-    // Só o modelo sabe se a última palavra estava pela metade: deduzir isso
+    // Só o modelo sabe se a sugestão completa a última palavra: deduzir isso
     // do texto confunde "D" + "de" com "D" seguido da palavra "de".
     final kept = _message.trimRight();
-    final prefix = prediction.completesLastWord
+    final prefix = rank >= 0 && prediction.completesLastWord[rank]
         ? kept.replaceFirst(_lastWord, '')
         : kept.isEmpty
         ? ''

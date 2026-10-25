@@ -193,6 +193,23 @@ void main() {
     );
   });
 
+  testWidgets('com a mensagem vazia sugere a primeira palavra', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(home: CommunicatorScreen(wordPredictor: defaultPredictor)),
+    );
+    await tester.pump();
+
+    // Da primeira linha do teclado, subir entra na barra de sugestões.
+    await tester.tap(find.byIcon(Icons.keyboard_arrow_up));
+    await tester.pump();
+    await tester.tap(find.byIcon(Icons.check));
+    await tester.pump();
+
+    expect(messageText('EU '), findsOneWidget);
+  });
+
   testWidgets('as setas selecionam uma sugestão do auto-complete', (
     tester,
   ) async {

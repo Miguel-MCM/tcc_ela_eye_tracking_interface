@@ -104,43 +104,63 @@ class WordPredictor {
   List<String> suggest(String text, {int limit = 3}) =>
       predict(text, limit: limit).words;
 
-  /// Like [suggest], but also tells whether the words complete the last word
-  /// of [text] (`completesLastWord`) or come after it as the next word.
+  /// Like [suggest], but also tells, for each word, whether it completes the
+  /// last word of [text] (`completesLastWord[i]`) or comes after it as the
+  /// next word.
   ///
-  /// Only the model knows which case it chose, so whoever inserts a
-  /// suggestion must ask here instead of guessing from the text.
-  ({List<String> words, bool completesLastWord}) predict(
+  /// Only the model knows which case each suggestion is, so whoever inserts
+  /// a suggestion must ask here instead of guessing from the text.
+  ({List<String> words, List<bool> completesLastWord}) predict(
     String text, {
     int limit = 3,
   }) {
     final words = _tokenize(text).map(normalize).toList();
     final contextSize = order - 1;
-    var history = _pad(words);
-    var partial = '';
-
-    // Without a trailing space, the last word may still be a prefix. Treat it
-    // as complete only if the full context was seen, so that "eu quero"
-    // already suggests "beber" while "eu quero b" completes to "beber".
-    if (!text.endsWith(' ') && words.isNotEmpty) {
-      final fullContext = history.sublist(history.length - contextSize);
-      if (!_counts[contextSize].containsKey(_contextKey(fullContext))) {
-        partial = words.removeLast();
-        history = _pad(words);
+    // Highest score of each candidate word and whether it completes the
+    // partial word.
+    final candidates = <String, ({double score, bool completes})>{};
+    void offer(String word, double score, {required bool completes}) {
+      final current = candidates[word];
+      if (current == null || score > current.score) {
+        candidates[word] = (score: score, completes: completes);
       }
     }
 
-    final sorted = _scores(history, partial).entries.toList()
+    if (text.endsWith(' ') || words.isEmpty) {
+      _scores(_pad(words), '').forEach((w, s) => offer(w, s, completes: false));
+    } else {
+      // Without a trailing space, the last word may still be a prefix. If
+      // the full context was seen, it may also be complete: "eu quero"
+      // already suggests "beber", but "e" can be the word "e" or the start
+      // of "estou". Both readings compete on the score of the whole
+      // sequence: S(c | h) for a completion c, and S(last | h) × S(n | h last)
+      // for a next word n.
+      final partial = words.removeLast();
+      final history = _pad(words);
+      final completions = _scores(history, partial);
+      final fullContext = _pad([...words, partial]).sublist(
+        history.length + 1 - contextSize,
+      );
+      final seen = _counts[contextSize].containsKey(_contextKey(fullContext));
+      if (seen) {
+        final asWord = completions.remove(partial) ?? 0;
+        _scores([...history, partial], '').forEach(
+          (w, s) => offer(w, asWord * s, completes: false),
+        );
+      }
+      completions.forEach((w, s) => offer(w, s, completes: true));
+    }
+
+    final sorted = candidates.entries.toList()
       ..sort((a, b) {
-        final byScore = b.value.compareTo(a.value);
+        final byScore = b.value.score.compareTo(a.value.score);
         return byScore != 0 ? byScore : a.key.compareTo(b.key);
       });
+    final top = sorted.take(limit).toList();
 
     return (
-      words: sorted
-          .take(limit)
-          .map((entry) => _displayForms[entry.key] ?? entry.key)
-          .toList(),
-      completesLastWord: partial.isNotEmpty,
+      words: [for (final entry in top) _displayForms[entry.key] ?? entry.key],
+      completesLastWord: [for (final entry in top) entry.value.completes],
     );
   }
 

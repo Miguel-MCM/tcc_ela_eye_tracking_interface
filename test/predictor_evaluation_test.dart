@@ -27,16 +27,12 @@ void main() {
       expect(phrase.counts.keystrokeSavings, greaterThan(0));
     });
 
-    test('a tela atual não sugere a primeira palavra; a alternativa sim', () {
+    test('sugere a primeira palavra com a mensagem vazia', () {
       final predictor = WordPredictor(phrases: ['estou com dor']);
 
-      final current = SimulatedTypist(predictor).type('estou com dor')!;
-      final alternative = SimulatedTypist(
-        predictor,
-        showSuggestionsWhenEmpty: true,
-      ).type('estou com dor')!;
-      expect(current.words.first.predictedAfter, greaterThan(0));
-      expect(alternative.words.first.predictedAfter, 0);
+      final phrase = SimulatedTypist(predictor).type('estou com dor')!;
+      expect(phrase.words.first.predictedAfter, 0);
+      expect(phrase.words.first.acceptedRank, 0);
     });
 
     test('ignora o que não existe no teclado', () {

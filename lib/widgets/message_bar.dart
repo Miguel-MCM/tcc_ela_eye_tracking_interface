@@ -20,7 +20,6 @@ class MessageBar extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final isEmpty = text.isEmpty;
-    final visibleSuggestions = isEmpty ? const <String>[] : suggestions;
 
     return Container(
       width: double.infinity,
@@ -38,23 +37,23 @@ class MessageBar extends StatelessWidget {
         children: [
           Text(
             isEmpty ? 'Sua mensagem aparece aqui' : text,
-            maxLines: visibleSuggestions.isEmpty ? 3 : 1,
+            maxLines: suggestions.isEmpty ? 3 : 1,
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.headlineSmall?.copyWith(
               color: isEmpty ? scheme.onSurfaceVariant : scheme.onSurface,
               fontStyle: isEmpty ? FontStyle.italic : FontStyle.normal,
             ),
           ),
-          if (visibleSuggestions.isNotEmpty) ...[
+          if (suggestions.isNotEmpty) ...[
             const SizedBox(height: 8),
             SizedBox(
               height: 32,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                itemCount: visibleSuggestions.length,
+                itemCount: suggestions.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 6),
                 itemBuilder: (context, index) {
-                  final suggestion = visibleSuggestions[index];
+                  final suggestion = suggestions[index];
                   final selected = index == selectedSuggestionIndex;
                   return Semantics(
                     button: true,

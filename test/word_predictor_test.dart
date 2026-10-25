@@ -92,19 +92,51 @@ void main() {
     test('palavra pela metade é completada', () {
       final prediction = predictor.predict('EU QUERO D');
 
-      expect(prediction.completesLastWord, isTrue);
+      expect(prediction.completesLastWord, [true, true]);
       expect(prediction.words, ['dormir', 'de']);
     });
 
     test('contexto conhecido sem espaço sugere a próxima palavra', () {
       final prediction = predictor.predict('EU QUERO');
 
-      expect(prediction.completesLastWord, isFalse);
+      expect(prediction.completesLastWord.first, isFalse);
       expect(prediction.words.first, 'dormir');
     });
 
     test('depois de um espaço sugere a próxima palavra', () {
-      expect(predictor.predict('EU QUERO D ').completesLastWord, isFalse);
+      expect(
+        predictor.predict('EU QUERO D ').completesLastWord,
+        everyElement(isFalse),
+      );
+    });
+
+    test('letra que também é palavra mistura completações e próximas '
+        'palavras', () {
+      final predictor = WordPredictor(
+        phrases: [
+          'estou com fome',
+          'estou cansado',
+          'eu quero água',
+          'eu quero comer',
+          'e depois',
+        ],
+      );
+
+      final prediction = predictor.predict('E');
+      // "estou" e "eu" completam o "E"; "depois" vem depois da palavra "e".
+      expect(prediction.words, ['estou', 'eu', 'depois']);
+      expect(prediction.completesLastWord, [true, true, false]);
+    });
+
+    test('a própria letra não é sugerida como completação de si mesma', () {
+      final predictor = WordPredictor(phrases: ['e depois', 'eu quero']);
+
+      // Aceitar "e" como completação de "E" só acrescentaria um espaço; a
+      // palavra "e" já está coberta pelas próximas palavras.
+      final prediction = predictor.predict('E', limit: 10);
+      for (final (i, word) in prediction.words.indexed) {
+        if (word == 'e') expect(prediction.completesLastWord[i], isFalse);
+      }
     });
   });
 }

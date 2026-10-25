@@ -148,6 +148,25 @@ void main() {
       expect(counts.suggestionUtilization, 1);
     });
 
+    test('aceitar a palavra já digitada conta como atalho, não como '
+        'inserida por sugestão', () {
+      final session = _Session()..type('AGUA');
+      session
+        ..show(['água'])
+        ..accept('água', 0, 'ÁGUA ')
+        ..press('FALAR');
+
+      final phrase = session.metrics.phrases.single;
+      final counts = phrase.counts;
+      expect(phrase.words.single.shortcut, isTrue);
+      expect(phrase.words.single.toJson()['entry'], 'shortcut');
+      expect(counts.acceptances, 1);
+      expect(counts.shortcutAcceptances, 1);
+      expect(counts.predictionAccuracy, 0);
+      expect(counts.completionRate, 0);
+      expect(counts.acceptedRanks, isEmpty);
+    });
+
     test('palavra prevista mas digitada reduz a utilização', () {
       final session = _Session()..press('C');
       session

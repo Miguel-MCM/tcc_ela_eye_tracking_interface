@@ -4,9 +4,9 @@
 //   dart run tool/evaluate_predictor.dart
 //   dart run tool/evaluate_predictor.dart --json resultados.json
 //
-// Imprime uma tabela em Markdown com três cenários: a tela atual, a tela
-// mostrando sugestões também com a mensagem vazia, e a avaliação nas próprias
-// frases de treino (só como referência). Ver lib/metrics/predictor_evaluation.dart.
+// Imprime uma tabela em Markdown com dois cenários: a tela atual e a
+// avaliação nas próprias frases de treino (só como referência). Ver
+// lib/metrics/predictor_evaluation.dart.
 
 import 'dart:convert';
 import 'dart:io';
@@ -20,10 +20,6 @@ Future<void> main(List<String> args) async {
   );
   final scenarios = <String, EvaluationResult>{
     'Tela atual (validação cruzada)': crossValidate(phrases),
-    'Sugestões com mensagem vazia (validação cruzada)': crossValidate(
-      phrases,
-      typist: (p) => SimulatedTypist(p, showSuggestionsWhenEmpty: true),
-    ),
     'Nas frases de treino (referência)': evaluateInSample(phrases),
   };
 

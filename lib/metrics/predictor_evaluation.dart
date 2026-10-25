@@ -20,7 +20,6 @@ class SimulatedTypist {
   SimulatedTypist(
     this.predictor, {
     this.limit = 3,
-    this.showSuggestionsWhenEmpty = false,
     this.commandDuration = const Duration(milliseconds: 1500),
     List<List<KeyDef>> layout = kKeyboardRows,
   }) : _layout = layout;
@@ -29,10 +28,6 @@ class SimulatedTypist {
 
   /// Quantas sugestões a barra mostra.
   final int limit;
-
-  /// A tela atual esconde as sugestões com a mensagem vazia, então a primeira
-  /// palavra de cada frase nunca é prevista. Ligar isto simula a alternativa.
-  final bool showSuggestionsWhenEmpty;
 
   /// Tempo de cada comando; com o dwell padrão do rastreador, 1,5 s. Só afeta
   /// o WPM, que por isso é uma estimativa e não uma medida.
@@ -89,9 +84,7 @@ class _Session {
   List<List<KeyDef>> get _layout => typist._layout;
 
   List<String> get _suggestions =>
-      _text.isEmpty && !typist.showSuggestionsWhenEmpty
-      ? const []
-      : typist.predictor.suggest(_text, limit: typist.limit);
+      typist.predictor.suggest(_text, limit: typist.limit);
 
   /// Digita a última palavra de [expected] letra a letra, aceitando uma
   /// sugestão assim que ela custar no máximo o mesmo que terminar a palavra
@@ -103,8 +96,8 @@ class _Session {
     var typed = 0;
     while (true) {
       // Com a palavra inteira já digitada, aceitar a sugestão igual a ela só
-      // serviria de atalho para o espaço. TypingMetrics não conta isso como
-      // previsão, então o digitador não faz para manter as métricas coerentes.
+      // serviria de atalho para o espaço. TypingMetrics conta isso à parte
+      // (shortcutAcceptances), e o digitador não usa esse atalho.
       final suggestions = typed < word.length ? _suggestions : const <String>[];
       final rank = suggestions.indexWhere(
         (s) =>
@@ -187,8 +180,9 @@ class _Session {
   /// A mensagem depois de aceitar [suggestion], como em _acceptSuggestion.
   String _textAfterAccepting(String suggestion) {
     final prediction = typist.predictor.predict(_text, limit: typist.limit);
+    final rank = prediction.words.indexOf(suggestion);
     final kept = _text.trimRight();
-    final prefix = prediction.completesLastWord
+    final prefix = rank >= 0 && prediction.completesLastWord[rank]
         ? kept.replaceFirst(_lastWord, '')
         : kept.isEmpty
         ? ''

@@ -140,12 +140,20 @@ class WordEntry {
   /// Posição da sugestão aceita (0 é a primeira), ou null se foi digitada.
   int? acceptedRank;
 
+  /// A palavra foi digitada por inteiro e só depois aceita como sugestão,
+  /// como atalho para o espaço ou para o acento ("AGUA" → "ÁGUA ").
+  bool shortcut = false;
+
   bool get predicted => predictedAfter != null;
   bool get accepted => acceptedRank != null;
 
   Map<String, Object?> toJson() => {
     'word': word,
-    'entry': accepted ? 'suggestion' : 'typed',
+    'entry': accepted
+        ? 'suggestion'
+        : shortcut
+        ? 'shortcut'
+        : 'typed',
     'predictedAfterCharacters': predictedAfter,
     'top1AfterCharacters': top1After,
     'acceptedRank': acceptedRank == null ? null : acceptedRank! + 1,
@@ -183,6 +191,10 @@ class TypingCounts {
 
   /// Sugestões aceitas cuja palavra não ficou na frase falada.
   int rejectedAcceptances = 0;
+
+  /// Sugestões aceitas com a palavra já digitada por inteiro. Não contam em
+  /// [wordsAccepted], que assim nunca passa de [wordsPredicted].
+  int shortcutAcceptances = 0;
 
   int wordsAccepted = 0;
   int wordsPredicted = 0;
@@ -252,6 +264,7 @@ class TypingCounts {
     erasedCharacters += other.erasedCharacters;
     acceptances += other.acceptances;
     rejectedAcceptances += other.rejectedAcceptances;
+    shortcutAcceptances += other.shortcutAcceptances;
     wordsAccepted += other.wordsAccepted;
     wordsPredicted += other.wordsPredicted;
     wordsPredictedTop1 += other.wordsPredictedTop1;
@@ -282,6 +295,7 @@ class TypingCounts {
       'completionRate': _round(completionRate),
       'utilization': _round(suggestionUtilization),
       'acceptances': acceptances,
+      'shortcutAcceptances': shortcutAcceptances,
       // Posições a partir de 1, como aparecem na tela.
       'acceptedRanks': {
         for (final rank in acceptedRanks.keys.toList()..sort())
@@ -412,10 +426,18 @@ class _Segment {
       final index = words.indexWhere(
         (w) =>
             !w.entry.accepted &&
+            !w.entry.shortcut &&
             WordPredictor.normalize(spoken.substring(0, w.end)) == accepted,
       );
       if (index < 0) {
         counts.rejectedAcceptances++;
+        continue;
+      }
+      // Sem ter aparecido antes de completa, a palavra foi digitada, não
+      // prevista: a sugestão só serviu de atalho.
+      if (!words[index].entry.predicted) {
+        words[index].entry.shortcut = true;
+        counts.shortcutAcceptances++;
         continue;
       }
       final rank = acceptance.rank!;
