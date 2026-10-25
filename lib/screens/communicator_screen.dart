@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../gaze/gaze_mapper.dart';
 import '../gaze/gaze_tracker.dart';
@@ -96,7 +97,9 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
 
   Future<void> _loadWordPredictor() async {
     try {
-      final predictor = await WordPredictor.defaultModel();
+      final predictor = await WordPredictor.defaultModel(
+        rootBundle.loadString,
+      );
       if (!mounted) return;
       setState(() => _wordPredictor = predictor);
       _recordSuggestions();

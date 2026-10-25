@@ -1,7 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter/services.dart';
-
 /// Suggests the next word using probabilities from an n-gram model.
 ///
 /// The text is normalized (lowercase, no accents, hyphens or punctuation) so
@@ -55,20 +53,38 @@ class WordPredictor {
     'quero falar com meu pai',
   ];
 
-  /// Loads the default phrases and the additional phrases from JSON assets.
-  static Future<WordPredictor> defaultModel() async {
+  /// JSON assets with the additional phrases, each one a list of strings.
+  static const phraseAssets = [
+    'assets/phrases/frases_AAC_1.json',
+    'assets/phrases/frases_AAC_2.json',
+    'assets/phrases/frases_AAC_3.json',
+    'assets/phrases/frases_AAC_4.json',
+    'assets/phrases/frases_AAC_5.json',
+  ];
+
+  /// Loads the default phrases plus the ones in [phraseAssets].
+  ///
+  /// [load] reads an asset as text: `rootBundle.loadString` in the app, a
+  /// file read in tools. Taking it as a parameter keeps this file free of
+  /// Flutter imports, so the offline evaluation runs with `dart run`.
+  static Future<List<String>> loadPhrases(
+    Future<String> Function(String path) load,
+  ) async {
     final phrases = <String>[...defaultPhrases];
-
-    for (var index = 1; index <= 5; index++) {
-      final path = 'assets/phrases/frases_AAC_$index.json';
-      final content = await rootBundle.loadString(path);
-      final decoded = jsonDecode(content) as List<dynamic>;
-
+    for (final path in phraseAssets) {
+      final decoded = jsonDecode(await load(path)) as List<dynamic>;
       phrases.addAll(decoded.cast<String>());
     }
-
-    return WordPredictor(phrases: phrases);
+    return phrases;
   }
+
+  static Future<WordPredictor> defaultModel(
+    Future<String> Function(String path) load,
+  ) async => WordPredictor(phrases: await loadPhrases(load));
+
+  /// Normalized words of [text], split exactly as the model splits phrases.
+  static List<String> words(String text) =>
+      _tokenize(text).map(normalize).toList();
 
   /// Lowercases [word] and removes its accents and hyphens, so "ÁGUA" becomes
   /// "agua" and "e-mail" becomes "email".
