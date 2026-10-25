@@ -18,14 +18,17 @@ Future<void> main(List<String> args) async {
   final phrases = await WordPredictor.loadPhrases(
     (path) => File(path).readAsString(),
   );
+  final unique = deduplicate(phrases).length;
   final scenarios = <String, EvaluationResult>{
     'Tela atual (validação cruzada)': crossValidate(phrases),
     'Nas frases de treino (referência)': evaluateInSample(phrases),
   };
 
   stdout
-    ..writeln('Corpus: ${phrases.length} frases, '
-        '${deduplicate(phrases).length} após remover repetidas.')
+    ..writeln(
+      'Corpus: ${phrases.length} frases, '
+      '$unique após remover repetidas.',
+    )
     ..writeln('Validação cruzada em 10 partes, semente 42, 3 sugestões.')
     ..writeln()
     ..writeln('| Métrica | ${scenarios.keys.join(' | ')} |')
@@ -50,8 +53,7 @@ Future<void> main(List<String> args) async {
     'Letras digitadas antes da previsão (média)': (r) =>
         number(r.counts.meanCharactersBeforePrediction),
     'Palavras inseridas por sugestão': (r) => percent(r.counts.completionRate),
-    'WPM estimado (1,5 s por comando)': (r) =>
-        number(r.counts.wordsPerMinute),
+    'WPM estimado (1,5 s por comando)': (r) => number(r.counts.wordsPerMinute),
   };
   rows.forEach((name, cell) {
     stdout.writeln('| $name | ${scenarios.values.map(cell).join(' | ')} |');
@@ -61,7 +63,7 @@ Future<void> main(List<String> args) async {
   if (jsonIndex >= 0 && jsonIndex + 1 < args.length) {
     final out = {
       'corpusPhrases': phrases.length,
-      'uniquePhrases': deduplicate(phrases).length,
+      'uniquePhrases': unique,
       'folds': 10,
       'seed': 42,
       'scenarios': {
@@ -74,9 +76,9 @@ Future<void> main(List<String> args) async {
           },
       },
     };
-    await File(args[jsonIndex + 1]).writeAsString(
-      const JsonEncoder.withIndent('  ').convert(out),
-    );
+    await File(
+      args[jsonIndex + 1],
+    ).writeAsString(const JsonEncoder.withIndent('  ').convert(out));
     stdout.writeln('\nJSON gravado em ${args[jsonIndex + 1]}');
   }
 }

@@ -97,9 +97,7 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
 
   Future<void> _loadWordPredictor() async {
     try {
-      final predictor = await WordPredictor.defaultModel(
-        rootBundle.loadString,
-      );
+      final predictor = await WordPredictor.defaultModel(rootBundle.loadString);
       if (!mounted) return;
       setState(() => _wordPredictor = predictor);
       _recordSuggestions();
@@ -315,25 +313,14 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
     final predictor = _wordPredictor;
     if (predictor == null) return;
 
-    final prediction = predictor.predict(_message);
-    final rank = prediction.words.indexOf(suggestion);
-    // Só o modelo sabe se a sugestão completa a última palavra: deduzir isso
-    // do texto confunde "D" + "de" com "D" seguido da palavra "de".
-    final kept = _message.trimRight();
-    final prefix = rank >= 0 && prediction.completesLastWord[rank]
-        ? kept.replaceFirst(_lastWord, '')
-        : kept.isEmpty
-        ? ''
-        : '$kept ';
+    final rank = _suggestions.indexOf(suggestion);
     setState(() {
-      _message = '$prefix${suggestion.toUpperCase()} ';
+      _message = predictor.accept(_message, suggestion);
       _selectedSuggestion = null;
     });
     _metrics.recordAcceptance(suggestion, rank, _message);
     _recordSuggestions();
   }
-
-  static final _lastWord = RegExp(r'\S+$');
 
   @override
   Widget build(BuildContext context) {

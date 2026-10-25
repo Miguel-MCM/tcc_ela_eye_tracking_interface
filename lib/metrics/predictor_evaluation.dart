@@ -3,6 +3,7 @@ import 'dart:math';
 import '../models/gaze_command.dart';
 import '../models/keyboard_layout.dart';
 import '../models/word_predictor.dart';
+import 'keyboard_navigation.dart';
 import 'typing_event.dart';
 import 'typing_metrics.dart';
 
@@ -22,7 +23,7 @@ class SimulatedTypist {
     this.limit = 3,
     this.commandDuration = const Duration(milliseconds: 1500),
     List<List<KeyDef>> layout = kKeyboardRows,
-  }) : _layout = layout;
+  }) : _navigation = KeyboardNavigation(layout);
 
   final WordPredictor predictor;
 
@@ -33,7 +34,9 @@ class SimulatedTypist {
   /// o WPM, que por isso é uma estimativa e não uma medida.
   final Duration commandDuration;
 
-  final List<List<KeyDef>> _layout;
+  final KeyboardNavigation _navigation;
+
+  List<List<KeyDef>> get _layout => _navigation.layout;
 
   /// Digita [phrase] a partir de uma mensagem vazia, com o foco na primeira
   /// tecla, e termina em FALAR. Devolve null se não sobrar nada digitável.
@@ -82,6 +85,7 @@ class _Session {
   TypingEvent? _lastSuggestions;
 
   List<List<KeyDef>> get _layout => typist._layout;
+  KeyboardNavigation get _navigation => typist._navigation;
 
   List<String> get _suggestions =>
       typist.predictor.suggest(_text, limit: typist.limit);
@@ -102,7 +106,10 @@ class _Session {
       final rank = suggestions.indexWhere(
         (s) =>
             WordPredictor.normalize(s).toUpperCase() == word &&
-            _sameList(_words(_textAfterAccepting(s)), expected),
+            _sameList(
+              _words(typist.predictor.accept(_text, s, limit: typist.limit)),
+              expected,
+            ),
       );
       final rest = word.substring(typed).split('');
       final typingCost = _typingCost([...rest, if (!last) ' ']);
@@ -120,8 +127,8 @@ class _Session {
   }
 
   void pressLabel(String label) {
-    final (row, column) = _find(label);
-    for (final command in _path((_row, _column), (row, column))) {
+    final (row, column) = _navigation.find(label);
+    for (final command in _navigation.path((_row, _column), (row, column))) {
       _command(command);
     }
     _command(GazeCommand.select);
@@ -160,38 +167,25 @@ class _Session {
     for (var i = 0; i < rank; i++) {
       _command(GazeCommand.right);
     }
-    final suggestion = _suggestions[_selectedSuggestion!];
+    final suggestion = _suggestions[rank];
     _command(GazeCommand.select);
 
-    final prediction = typist.predictor.predict(_text, limit: typist.limit);
-    _text = _textAfterAccepting(suggestion);
+    _text = typist.predictor.accept(_text, suggestion, limit: typist.limit);
     _selectedSuggestion = null;
     events.add(
       TypingEvent.acceptance(
         _time,
         suggestion: suggestion,
-        rank: prediction.words.indexOf(suggestion),
+        rank: rank,
         text: _text,
       ),
     );
     _recordSuggestions();
   }
 
-  /// A mensagem depois de aceitar [suggestion], como em _acceptSuggestion.
-  String _textAfterAccepting(String suggestion) {
-    final prediction = typist.predictor.predict(_text, limit: typist.limit);
-    final rank = prediction.words.indexOf(suggestion);
-    final kept = _text.trimRight();
-    final prefix = rank >= 0 && prediction.completesLastWord[rank]
-        ? kept.replaceFirst(_lastWord, '')
-        : kept.isEmpty
-        ? ''
-        : '$kept ';
-    return '$prefix${suggestion.toUpperCase()} ';
-  }
-
-  static List<String> _words(String text) =>
-      [for (final w in WordPredictor.words(text)) w.toUpperCase()];
+  static List<String> _words(String text) => [
+    for (final w in WordPredictor.words(text)) w.toUpperCase(),
+  ];
 
   void _command(GazeCommand command) {
     _time += typist.commandDuration;
@@ -248,78 +242,52 @@ class _Session {
     var position = (_row, _column);
     var cost = 0;
     for (final label in labels) {
-      final key = _find(label == ' ' ? 'ESPAÇO' : label);
-      cost += _path(position, key).length + 1;
+      final key = _navigation.find(label == ' ' ? 'ESPAÇO' : label);
+      cost += _navigation.path(position, key).length + 1;
       position = key;
     }
     return cost;
   }
 
-  (int, int) _find(String label) {
-    for (var r = 0; r < _layout.length; r++) {
-      for (var c = 0; c < _layout[r].length; c++) {
-        if (_layout[r][c].label == label) return (r, c);
-      }
-    }
-    throw ArgumentError('Tecla inexistente: $label');
-  }
-
-  /// Caminho mínimo de setas entre duas teclas, com as mesmas regras de
-  /// _Keyboard em typing_metrics.dart: mudar de linha limita a coluna.
-  List<GazeCommand> _path((int, int) from, (int, int) to) {
-    final previous = <(int, int), ((int, int), GazeCommand)?>{from: null};
-    final queue = [from];
-    for (var i = 0; i < queue.length; i++) {
-      final current = queue[i];
-      if (current == to) break;
-      final (row, column) = current;
-      for (final (command, dr, dc) in const [
-        (GazeCommand.up, -1, 0),
-        (GazeCommand.down, 1, 0),
-        (GazeCommand.left, 0, -1),
-        (GazeCommand.right, 0, 1),
-      ]) {
-        final r = (row + dr).clamp(0, _layout.length - 1);
-        final next = (r, (column + dc).clamp(0, _layout[r].length - 1));
-        if (previous.containsKey(next)) continue;
-        previous[next] = (current, command);
-        queue.add(next);
-      }
-    }
-    final path = <GazeCommand>[];
-    for (var step = previous[to]; step != null; step = previous[step.$1]) {
-      path.add(step.$2);
-    }
-    return path.reversed.toList();
-  }
-
   static bool _sameList(List<String> a, List<String> b) =>
       a.length == b.length &&
       Iterable.generate(a.length).every((i) => a[i] == b[i]);
-
-  static final _lastWord = RegExp(r'\S+$');
 }
 
 /// Resultado de uma avaliação sobre um conjunto de frases.
 class EvaluationResult {
-  EvaluationResult({
-    required this.counts,
-    required this.phrases,
-    required this.words,
-    required this.outOfVocabulary,
-  });
-
   /// Contagens somadas de todas as frases (micro-média, como em
   /// [TypingMetrics.summary]).
-  final TypingCounts counts;
-  final int phrases;
-  final int words;
+  final counts = TypingCounts();
+  var phrases = 0;
+  var words = 0;
 
   /// Palavras de teste que não aparecem no corpus de treino: nenhuma
   /// sugestão consegue acertá-las.
-  final int outOfVocabulary;
+  var outOfVocabulary = 0;
 
   double get outOfVocabularyRate => words == 0 ? 0 : outOfVocabulary / words;
+
+  /// Treina um modelo com [train] e digita cada frase de [test] com ele.
+  void _add(
+    List<String> train,
+    List<String> test,
+    SimulatedTypist Function(WordPredictor predictor)? typist,
+  ) {
+    final predictor = WordPredictor(phrases: train);
+    final simulator = typist?.call(predictor) ?? SimulatedTypist(predictor);
+    final vocabulary = {for (final p in train) ...WordPredictor.words(p)};
+    for (final phrase in test) {
+      final metrics = simulator.type(phrase);
+      if (metrics == null) continue;
+      counts.add(metrics.counts);
+      phrases++;
+      for (final word in WordPredictor.words(phrase)) {
+        words++;
+        if (!vocabulary.contains(word)) outOfVocabulary++;
+      }
+    }
+  }
 }
 
 /// Validação cruzada em [folds] partes: cada frase é digitada por um modelo
@@ -335,38 +303,21 @@ EvaluationResult crossValidate(
   SimulatedTypist Function(WordPredictor predictor)? typist,
 }) {
   final unique = deduplicate(phrases)..shuffle(Random(seed));
-  final counts = TypingCounts();
-  var words = 0;
-  var outOfVocabulary = 0;
-  var typed = 0;
-
+  final result = EvaluationResult();
   for (var fold = 0; fold < folds; fold++) {
-    final train = <String>[];
-    final test = <String>[];
-    for (var i = 0; i < unique.length; i++) {
-      (i % folds == fold ? test : train).add(unique[i]);
-    }
-    final vocabulary = {for (final p in train) ...WordPredictor.words(p)};
-    final predictor = WordPredictor(phrases: train);
-    final simulator = typist?.call(predictor) ?? SimulatedTypist(predictor);
-
-    for (final phrase in test) {
-      final metrics = simulator.type(phrase);
-      if (metrics == null) continue;
-      counts.add(metrics.counts);
-      typed++;
-      for (final word in WordPredictor.words(phrase)) {
-        words++;
-        if (!vocabulary.contains(word)) outOfVocabulary++;
-      }
-    }
+    result._add(
+      [
+        for (final (i, p) in unique.indexed)
+          if (i % folds != fold) p,
+      ],
+      [
+        for (final (i, p) in unique.indexed)
+          if (i % folds == fold) p,
+      ],
+      typist,
+    );
   }
-  return EvaluationResult(
-    counts: counts,
-    phrases: typed,
-    words: words,
-    outOfVocabulary: outOfVocabulary,
-  );
+  return result;
 }
 
 /// Avalia nas próprias frases de treino. Serve só de referência: a diferença
@@ -376,33 +327,14 @@ EvaluationResult evaluateInSample(
   SimulatedTypist Function(WordPredictor predictor)? typist,
 }) {
   final unique = deduplicate(phrases);
-  final predictor = WordPredictor(phrases: unique);
-  final simulator = typist?.call(predictor) ?? SimulatedTypist(predictor);
-  final counts = TypingCounts();
-  var words = 0;
-  var typed = 0;
-  for (final phrase in unique) {
-    final metrics = simulator.type(phrase);
-    if (metrics == null) continue;
-    counts.add(metrics.counts);
-    typed++;
-    words += WordPredictor.words(phrase).length;
-  }
-  return EvaluationResult(
-    counts: counts,
-    phrases: typed,
-    words: words,
-    outOfVocabulary: 0,
-  );
+  return EvaluationResult().._add(unique, unique, typist);
 }
 
 /// Remove frases repetidas, comparando a forma normalizada.
 List<String> deduplicate(List<String> phrases) {
   final seen = <String>{};
-  return [
-    for (final phrase in phrases)
-      if (WordPredictor.words(phrase).isNotEmpty &&
-          seen.add(WordPredictor.words(phrase).join(' ')))
-        phrase,
-  ];
+  return phrases.where((phrase) {
+    final words = WordPredictor.words(phrase);
+    return words.isNotEmpty && seen.add(words.join(' '));
+  }).toList();
 }

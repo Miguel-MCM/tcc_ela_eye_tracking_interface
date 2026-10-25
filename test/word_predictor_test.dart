@@ -103,6 +103,13 @@ void main() {
       expect(prediction.words.first, 'dormir');
     });
 
+    test('accept completa a palavra pela metade ou acrescenta a próxima', () {
+      expect(predictor.accept('EU QUERO D', 'de'), 'EU QUERO DE ');
+      expect(predictor.accept('EU QUERO', 'dormir'), 'EU QUERO DORMIR ');
+      expect(predictor.accept('EU QUERO D ', 'de'), 'EU QUERO D DE ');
+      expect(predictor.accept('', 'eu'), 'EU ');
+    });
+
     test('depois de um espaço sugere a próxima palavra', () {
       expect(
         predictor.predict('EU QUERO D ').completesLastWord,

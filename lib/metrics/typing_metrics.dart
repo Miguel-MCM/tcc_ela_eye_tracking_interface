@@ -3,6 +3,7 @@ import 'dart:math';
 import '../models/gaze_command.dart';
 import '../models/keyboard_layout.dart';
 import '../models/word_predictor.dart';
+import 'keyboard_navigation.dart';
 import 'typing_event.dart';
 
 /// Métricas de digitação calculadas a partir do log de eventos.
@@ -488,6 +489,7 @@ class _Keyboard {
   }
 
   final List<List<KeyDef>> layout;
+  late final _navigation = KeyboardNavigation(layout);
   final _letters = <String, (int, int)>{};
   (int, int)? _space;
   (int, int)? _clear;
@@ -505,7 +507,7 @@ class _Keyboard {
     var selections = 0;
     void press((int, int)? key) {
       if (key == null) return;
-      interactions += _distance(position, key) + 1;
+      interactions += _navigation.path(position, key).length + 1;
       selections++;
       position = key;
     }
@@ -516,30 +518,6 @@ class _Keyboard {
     }
     press(_speak);
     return (interactions, selections);
-  }
-
-  int _distance((int, int) from, (int, int) to) {
-    final distances = {from: 0};
-    final queue = [from];
-    for (var i = 0; i < queue.length; i++) {
-      final current = queue[i];
-      if (current == to) return distances[current]!;
-      for (final next in _neighbors(current)) {
-        if (distances.containsKey(next)) continue;
-        distances[next] = distances[current]! + 1;
-        queue.add(next);
-      }
-    }
-    throw StateError('Tecla inalcançável: $to');
-  }
-
-  Iterable<(int, int)> _neighbors((int, int) position) sync* {
-    final (row, column) = position;
-    for (final delta in const [-1, 1]) {
-      final r = (row + delta).clamp(0, layout.length - 1);
-      yield (r, column.clamp(0, layout[r].length - 1));
-      yield (row, (column + delta).clamp(0, layout[row].length - 1));
-    }
   }
 }
 

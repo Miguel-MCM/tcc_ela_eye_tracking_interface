@@ -104,17 +104,32 @@ class WordPredictor {
   List<String> suggest(String text, {int limit = 3}) =>
       predict(text, limit: limit).words;
 
+  /// [text] after accepting [suggestion], one of the [limit] words that
+  /// [suggest] returned for it: the suggestion replaces the partial last word
+  /// or comes after it, in uppercase like the keyboard, followed by a space.
+  ///
+  /// Only the model knows which case each suggestion is; guessing from the
+  /// text confuses "D" + "de" with "D" followed by the word "de".
+  String accept(String text, String suggestion, {int limit = 3}) {
+    final prediction = predict(text, limit: limit);
+    final index = prediction.words.indexOf(suggestion);
+    final kept = text.trimRight();
+    final prefix = index >= 0 && prediction.completesLastWord[index]
+        ? kept.replaceFirst(_lastWord, '')
+        : kept.isEmpty
+        ? ''
+        : '$kept ';
+    return '$prefix${suggestion.toUpperCase()} ';
+  }
+
   /// Like [suggest], but also tells, for each word, whether it completes the
   /// last word of [text] (`completesLastWord[i]`) or comes after it as the
-  /// next word.
-  ///
-  /// Only the model knows which case each suggestion is, so whoever inserts
-  /// a suggestion must ask here instead of guessing from the text.
+  /// next word. To insert a suggestion, use [accept].
   ({List<String> words, List<bool> completesLastWord}) predict(
     String text, {
     int limit = 3,
   }) {
-    final words = _tokenize(text).map(normalize).toList();
+    final words = WordPredictor.words(text);
     final contextSize = order - 1;
     // Highest score of each candidate word and whether it completes the
     // partial word.
@@ -138,15 +153,13 @@ class WordPredictor {
       final partial = words.removeLast();
       final history = _pad(words);
       final completions = _scores(history, partial);
-      final fullContext = _pad([...words, partial]).sublist(
-        history.length + 1 - contextSize,
-      );
-      final seen = _counts[contextSize].containsKey(_contextKey(fullContext));
-      if (seen) {
-        final asWord = completions.remove(partial) ?? 0;
-        _scores([...history, partial], '').forEach(
-          (w, s) => offer(w, asWord * s, completes: false),
-        );
+      final asWord = [...history, partial];
+      final fullContext = asWord.sublist(asWord.length - contextSize);
+      if (_counts[contextSize].containsKey(_contextKey(fullContext))) {
+        final wordScore = completions.remove(partial) ?? 0;
+        for (final MapEntry(key: w, value: s) in _scores(asWord, '').entries) {
+          offer(w, wordScore * s, completes: false);
+        }
       }
       completions.forEach((w, s) => offer(w, s, completes: true));
     }
@@ -236,6 +249,7 @@ class WordPredictor {
       .where((word) => word.isNotEmpty)
       .toList();
 
+  static final _lastWord = RegExp(r'\S+$');
   static final _nonWord = RegExp(r'[^\p{L}\p{N}-]+', unicode: true);
   static final _edgeHyphens = RegExp(r'^-+|-+$');
 
