@@ -75,7 +75,7 @@ flutter:
     - assets/models/kokoro_pt/
     - assets/models/kokoro_pt/espeak-ng-data/
     - assets/models/kokoro_pt/espeak-ng-data/lang/roa/
-
+    - assets/phrases/
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 

@@ -36,6 +36,71 @@ player um WAV temporário. Pedidos simultâneos são rejeitados para que comando
 repetidos do dwell não sobreponham falas; `stop` e `dispose` também limpam a
 reprodução, a isolate e arquivos temporários.
 
+## Autocomplete
+
+O autocomplete usa um **modelo de n-gramas**: ele conta, num conjunto de frases (o
+corpus), quais palavras costumam vir depois de quais. Com `order = 3` (trigramas),
+ele olha as **duas últimas palavras** para adivinhar a próxima.
+
+Exemplo: se no corpus "eu quero" foi seguido de "beber" 5 vezes e de "comer" 3
+vezes, ao digitar "EU QUERO " a primeira sugestão é "beber".
+
+Quando o contexto nunca foi visto ("EU ADORO", por exemplo), o modelo **recua**
+para um contexto menor: só a última palavra e, se nem ela foi vista, a frequência
+geral das palavras. Cada recuo multiplica a pontuação por 0,4 para dar menos peso
+a contextos curtos. Essa técnica se chama **Stupid Backoff** (Brants et al., 2007).
+
+### As três partes
+
+**1. O modelo: `lib/models/word_predictor.dart` (`WordPredictor`)**
+
+É a parte inteligente. Não sabe nada de tela, só recebe texto e devolve palavras.
+
+- **Construção (uma vez, ao abrir o app):** `defaultModel()` carrega as frases (as
+  fixas no código e as de `assets/phrases/frases_AAC_1..5.json`). Depois `_build()`
+  conta todos os n-gramas em tabelas.
+- **Consulta (a cada mudança na mensagem):** `suggest(texto)` decide se a última
+  palavra está completa ou pela metade. Depois `_scores()` pontua as candidatas e
+  devolve as 3 melhores.
+- **Auxiliares:** `normalize()` tira acentos, maiúsculas e hífens. `_tokenize()`
+  quebra o texto em palavras. `_pad()` marca o início da frase. `_contextKey()`
+  transforma uma lista de palavras na chave das tabelas.
+
+**2. A tela: `lib/screens/communicator_screen.dart`**
+
+Liga o modelo à interação por olhar.
+
+- `_suggestions`: pede as sugestões ao modelo para a mensagem atual.
+- `_moveRow` / `_moveColumn`: olhar para cima a partir da primeira linha do teclado
+  entra nas sugestões, e esquerda/direita escolhe entre elas.
+- `_acceptSuggestion`: insere a palavra escolhida. Pode **completar** a palavra pela
+  metade ("AG" → "ÁGUA ") ou **acrescentar** a próxima palavra ("EU QUERO" →
+  "EU QUERO BEBER ").
+
+**3. A exibição: `lib/widgets/message_bar.dart` (`MessageBar`)**
+
+Mostra a mensagem e as sugestões, destaca a que está selecionada e esconde tudo
+quando a mensagem está vazia.
+
+### O fluxo completo
+
+```
+Abrir o app
+  └─ defaultModel() → carrega frases → _build() conta n-gramas
+
+Usuário digita uma letra
+  └─ _pressKey() altera _message
+       └─ a tela redesenha → _suggestions → suggest(_message)
+            ├─ _tokenize + normalize: "EU QUERO B" → [eu, quero, b]
+            ├─ "b" está pela metade → vira filtro, contexto = [eu, quero]
+            ├─ _scores(): procura palavras após "eu quero" que começam com "b"
+            │     (se faltar, recua para "quero", depois para todas as palavras)
+            └─ ordena, pega as 3 melhores, devolve com acento: [beber, ...]
+
+Usuário olha para cima e confirma
+  └─ _acceptSuggestion("beber") → _message = "EU QUERO BEBER "
+```
+
 ## Getting Started
 
 This project is a starting point for a Flutter application.

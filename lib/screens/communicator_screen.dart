@@ -3,10 +3,13 @@ import 'dart:async';
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../gaze/gaze_mapper.dart';
 import '../gaze/gaze_tracker.dart';
 import '../gaze/pupil_detector.dart';
+import '../metrics/typing_event.dart';
+import '../metrics/typing_metrics_recorder.dart';
 import '../models/control_style.dart';
 import '../models/gaze_command.dart';
 import '../models/keyboard_layout.dart';
@@ -30,10 +33,18 @@ class CommunicatorScreen extends StatefulWidget {
     super.key,
     this.controlStyle = ControlStyle.edges,
     this.synthesizer,
+    this.metricsRecorder,
+    this.wordPredictor,
   });
 
   final ControlStyle controlStyle;
   final SpeechSynthesizer? synthesizer;
+
+  /// Modelo de sugestões; sem ele, a tela carrega o padrão dos assets.
+  final WordPredictor? wordPredictor;
+
+  /// Recebe a digitação para as métricas; sem ele, a tela cria e grava o seu.
+  final TypingMetricsRecorder? metricsRecorder;
 
   @override
   State<CommunicatorScreen> createState() => _CommunicatorScreenState();
@@ -51,15 +62,18 @@ final double _keyboardAspectRatio =
 final double _keyboardAspectRatioTall = _keyboardAspectRatio / 1.4;
 
 class _CommunicatorScreenState extends State<CommunicatorScreen> {
-  final _wordPredictor = WordPredictor.defaultModel();
+  WordPredictor? _wordPredictor;
   late final SpeechSynthesizer _synthesizer;
   late final bool _ownsSynthesizer;
+  late final TypingMetricsRecorder _metrics;
+  late final bool _ownsMetrics;
   String _message = '';
   int _row = 0;
   int _column = 0;
   int? _selectedSuggestion;
 
-  List<String> get _suggestions => _wordPredictor.suggest(_message);
+  List<String> get _suggestions =>
+      _wordPredictor?.suggest(_message) ?? const <String>[];
 
   GazeTracker? _tracker;
   StreamSubscription<GazeCommand>? _commandSub;
@@ -75,12 +89,32 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
     _ownsSynthesizer = widget.synthesizer == null;
     _synthesizer = widget.synthesizer ?? KokoroSynthesizer();
     _synthesizer.state.addListener(_onSpeechStateChanged);
+    _ownsMetrics = widget.metricsRecorder == null;
+    _metrics = widget.metricsRecorder ?? TypingMetricsRecorder();
+    _wordPredictor = widget.wordPredictor;
+    if (_wordPredictor == null) _loadWordPredictor();
+  }
+
+  Future<void> _loadWordPredictor() async {
+    try {
+      final predictor = await WordPredictor.defaultModel(
+        rootBundle.loadString,
+      );
+      if (!mounted) return;
+      setState(() => _wordPredictor = predictor);
+      _recordSuggestions();
+    } catch (error, stackTrace) {
+      debugPrint(
+        '[word_predictor] falha ao carregar frases: $error\\n$stackTrace',
+      );
+    }
   }
 
   @override
   void dispose() {
     _synthesizer.state.removeListener(_onSpeechStateChanged);
     if (_ownsSynthesizer) unawaited(_synthesizer.dispose());
+    if (_ownsMetrics && _metrics.events.isNotEmpty) unawaited(_metrics.save());
     _commandSub?.cancel();
     _sampleSub?.cancel();
     _tracker?.dispose();
@@ -109,7 +143,9 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
       );
       // O rastreador emite exatamente os mesmos comandos das setas, então entra
       // por _handleCommand sem que nada na interface precise mudar.
-      _commandSub = tracker.commands.listen(_handleCommand);
+      _commandSub = tracker.commands.listen(
+        (command) => _handleCommand(command, source: InputSource.gaze),
+      );
       _sampleSub = tracker.samples.listen((s) {
         if (mounted) setState(() => _gaze = s);
       });
@@ -147,7 +183,12 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
     );
   }
 
-  void _handleCommand(GazeCommand command) {
+  /// Os botões na tela chamam isto direto, então o padrão é [InputSource.touch].
+  void _handleCommand(
+    GazeCommand command, {
+    InputSource source = InputSource.touch,
+  }) {
+    _metrics.recordCommand(command, source);
     switch (command) {
       case GazeCommand.up:
         _moveRow(-1);
@@ -231,7 +272,33 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
           break;
       }
     });
-    if (shouldSpeak) unawaited(_speakMessage());
+    _metrics.recordKey(keyDef, row, column, _message);
+    _recordSuggestions();
+    if (shouldSpeak) {
+      unawaited(_speakMessage());
+      // Cada frase falada fecha uma unidade de análise; gravar aqui evita
+      // perder a sessão se o app for encerrado.
+      unawaited(_metrics.save());
+    }
+  }
+
+  /// Toque direto numa tecla: conta como uma seleção, sem navegação.
+  void _tapKey(int row, int column) {
+    _metrics.recordCommand(GazeCommand.select, InputSource.touch);
+    _pressKey(row, column);
+  }
+
+  void _tapSuggestion(String suggestion) {
+    _metrics.recordCommand(GazeCommand.select, InputSource.touch);
+    _acceptSuggestion(suggestion);
+  }
+
+  /// A barra só mostra sugestões quando há mensagem.
+  void _recordSuggestions() {
+    _metrics.recordSuggestions(
+      _message,
+      _message.isEmpty ? const [] : _suggestions,
+    );
   }
 
   Future<void> _speakMessage() async {
@@ -252,25 +319,28 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
   }
 
   void _acceptSuggestion(String suggestion) {
-    final endsWithSpace = _message.endsWith(' ');
-    final completesCurrentWord = _wordPredictor
-        .suggest('$_message ')
-        .contains(suggestion);
-    final words = _message.trimRight().split(RegExp(r'\s+'));
-    final prefix = endsWithSpace
-        ? _message
-        : completesCurrentWord
-        ? '${_message.trim()} '
-        : _message.trim().isEmpty
+    final predictor = _wordPredictor;
+    if (predictor == null) return;
+
+    final prediction = predictor.predict(_message);
+    final rank = prediction.words.indexOf(suggestion);
+    // Só o modelo sabe se a última palavra estava pela metade: deduzir isso
+    // do texto confunde "D" + "de" com "D" seguido da palavra "de".
+    final kept = _message.trimRight();
+    final prefix = prediction.completesLastWord
+        ? kept.replaceFirst(_lastWord, '')
+        : kept.isEmpty
         ? ''
-        : words.length > 1
-        ? '${words.sublist(0, words.length - 1).join(' ')} '
-        : '';
+        : '$kept ';
     setState(() {
       _message = '$prefix${suggestion.toUpperCase()} ';
       _selectedSuggestion = null;
     });
+    _metrics.recordAcceptance(suggestion, rank, _message);
+    _recordSuggestions();
   }
+
+  static final _lastWord = RegExp(r'\S+$');
 
   @override
   Widget build(BuildContext context) {
@@ -440,7 +510,7 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
               text: _message,
               suggestions: _suggestions,
               selectedSuggestionIndex: _selectedSuggestion,
-              onSuggestionTap: _acceptSuggestion,
+              onSuggestionTap: _tapSuggestion,
             ),
           ),
           const SizedBox(width: 12),
@@ -501,7 +571,7 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
       column: _column,
       speakEnabled: _message.trim().isNotEmpty && !speechState.isBusy,
       speakLabel: speakLabel,
-      onKeyTap: _pressKey,
+      onKeyTap: _tapKey,
     );
   }
 }
