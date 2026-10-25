@@ -4,18 +4,13 @@ import 'dart:math';
 import 'keyboard_layout.dart';
 import 'keyboard_navigation.dart';
 
-/// Suggests the next word using probabilities from an n-gram model.
+/// Suggests words from an n-gram model built on a corpus of phrases.
 ///
-/// The text is normalized (lowercase, no accents, hyphens or punctuation) so
-/// that the on-screen keyboard, which has no accented keys, still matches the
-/// corpus.
-/// Each phrase is padded with [sentenceStart] markers, and unseen contexts
-/// fall back to shorter ones with Stupid Backoff (Brants et al., 2007).
-/// The corpus can be replaced with phrases collected from the user in the future.
-///
-/// Partial words tolerate typing errors: a word is still completed when the
-/// typed letters are a small edit away from one of its prefixes, with errors
-/// between neighboring keys of [layout] costing less (see [typoMaxCost]).
+/// Text is normalized (lowercase, no accents, hyphens or punctuation) so the
+/// keyboard, which has no accented keys, matches the corpus. Phrases start
+/// with [sentenceStart] markers, unseen contexts back off to shorter ones
+/// (Stupid Backoff, Brants et al., 2007), and a partial word may contain a
+/// typing error (see [typoMaxCost]).
 class WordPredictor {
   WordPredictor({
     required Iterable<String> phrases,
@@ -27,15 +22,7 @@ class WordPredictor {
     List<List<KeyDef>> layout = kKeyboardRows,
   }) : assert(order >= 2) {
     _build(phrases);
-    final navigation = KeyboardNavigation(layout);
-    for (final row in layout) {
-      for (final key in row.where((key) => key.isCharacter)) {
-        _neighbors[key.label.toLowerCase()] = {
-          for (final label in navigation.neighbors(key.label))
-            label.toLowerCase(),
-        };
-      }
-    }
+    _buildNeighbors(layout);
   }
 
   final int order;
@@ -56,9 +43,6 @@ class WordPredictor {
   /// exact completions usually rank first.
   final double typoPenalty;
 
-  /// Letters one arrow away from each letter on the keyboard.
-  final Map<String, Set<String>> _neighbors = {};
-
   /// Marks the beginning of a phrase in the n-gram contexts.
   static const sentenceStart = '<s>';
 
@@ -70,6 +54,9 @@ class WordPredictor {
 
   /// Most frequent spelling (with accents) of each normalized word.
   final Map<String, String> _displayForms = {};
+
+  /// Letters one arrow away from each letter on the keyboard.
+  final Map<String, Set<String>> _neighbors = {};
 
   /// Initial editable corpus, inspired by the NLTK prototype phrases.
   static const defaultPhrases = [
@@ -101,9 +88,8 @@ class WordPredictor {
 
   /// Loads the default phrases plus the ones in [phraseAssets].
   ///
-  /// [load] reads an asset as text: `rootBundle.loadString` in the app, a
-  /// file read in tools. Taking it as a parameter keeps this file free of
-  /// Flutter imports, so the offline evaluation runs with `dart run`.
+  /// [load] reads an asset as text (`rootBundle.loadString` in the app, a
+  /// file read in tools), which keeps this file runnable with `dart run`.
   static Future<List<String>> loadPhrases(
     Future<String> Function(String path) load,
   ) async {
@@ -134,10 +120,8 @@ class WordPredictor {
     return buffer.toString();
   }
 
-  /// Returns the most likely words for the current text.
-  ///
-  /// When the text ends in the middle of a word, that part is used as a
-  /// filter. Otherwise, the model considers the last complete words.
+  /// The [limit] most likely words for [text]: completions of its last word
+  /// or words that come after it. See [predict].
   List<String> suggest(String text, {int limit = 3}) =>
       predict(text, limit: limit).words;
 
@@ -181,12 +165,10 @@ class WordPredictor {
     if (text.endsWith(' ') || words.isEmpty) {
       _scores(_pad(words), '').forEach((w, s) => offer(w, s, completes: false));
     } else {
-      // Without a trailing space, the last word may still be a prefix. If
-      // the full context was seen, it may also be complete: "eu quero"
-      // already suggests "beber", but "e" can be the word "e" or the start
-      // of "estou". Both readings compete on the score of the whole
-      // sequence: S(c | h) for a completion c, and S(last | h) × S(n | h last)
-      // for a next word n.
+      // Without a trailing space, the last word may be partial ("e" → "estou")
+      // or, if its context was seen, already complete ("eu quero" → "beber").
+      // Both readings compete on the score of the whole sequence: S(c | h)
+      // for a completion c, S(last | h) × S(n | h last) for a next word n.
       final partial = words.removeLast();
       final history = _pad(words);
       final completions = _scores(history, partial);
@@ -306,6 +288,16 @@ class WordPredictor {
           .reduce((best, entry) => entry.value > best.value ? entry : best)
           .key;
     });
+  }
+
+  void _buildNeighbors(List<List<KeyDef>> layout) {
+    final navigation = KeyboardNavigation(layout);
+    for (final key in layout.expand((row) => row).where((k) => k.isCharacter)) {
+      _neighbors[key.label.toLowerCase()] = {
+        for (final label in navigation.neighbors(key.label))
+          label.toLowerCase(),
+      };
+    }
   }
 
   /// Prepends the [sentenceStart] markers that fill the first contexts.

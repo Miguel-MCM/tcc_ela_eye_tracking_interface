@@ -44,13 +44,12 @@ class SimulatedTypist {
   /// certa, se ela aparecer, ou apagar até o erro e redigitar.
   final bool noticesErrors;
 
-  final Random _random;
-
   /// Tempo de cada comando; com o dwell padrão do rastreador, 1,5 s. Só afeta
   /// o WPM, que por isso é uma estimativa e não uma medida.
   final Duration commandDuration;
 
   final KeyboardNavigation _navigation;
+  final Random _random;
 
   List<List<KeyDef>> get _layout => _navigation.layout;
 
@@ -106,11 +105,9 @@ class _Session {
   List<String> get _suggestions =>
       typist.predictor.suggest(_text, limit: typist.limit);
 
-  /// Digita a última palavra de [expected] letra a letra, aceitando uma
-  /// sugestão assim que ela custar no máximo o mesmo que terminar a palavra
-  /// à mão. [expected] traz as palavras da frase até a atual, para conferir
-  /// o texto que a sugestão produziria: com a palavra completa e sem espaço,
-  /// o modelo pode estar sugerindo a próxima palavra, e não a atual.
+  /// Digita a última palavra de [expected] (as palavras da frase até a
+  /// atual), aceitando uma sugestão assim que ela custar no máximo o mesmo
+  /// que terminar a palavra à mão.
   void typeWord(List<String> expected, {required bool last}) {
     final word = expected.last;
     // Letras desta palavra já na mensagem, certas ou não.
@@ -122,18 +119,9 @@ class _Session {
         correct++;
       }
       final wrong = typed.length - correct;
-      // Com a palavra inteira já digitada, aceitar a sugestão igual a ela só
-      // serviria de atalho para o espaço. TypingMetrics conta isso à parte
-      // (shortcutAcceptances), e o digitador não usa esse atalho.
-      final suggestions = typed != word ? _suggestions : const <String>[];
-      final rank = suggestions.indexWhere(
-        (s) =>
-            WordPredictor.normalize(s).toUpperCase() == word &&
-            _sameList(
-              _words(typist.predictor.accept(_text, s, limit: typist.limit)),
-              expected,
-            ),
-      );
+
+      // Com a palavra pronta, aceitá-la seria só um atalho; o digitador não usa.
+      final rank = typed == word ? -1 : _rankOf(expected);
       final typingCost = _typingCost([
         for (var i = 0; i < wrong; i++) 'APAGAR',
         ...word.substring(correct).split(''),
@@ -143,6 +131,7 @@ class _Session {
         _accept(rank);
         return;
       }
+      // Percebido o erro, apaga até ele.
       erasing =
           wrong > 0 &&
           (erasing || typist.noticesErrors || typed.length >= word.length);
@@ -160,6 +149,18 @@ class _Session {
       typed += letter;
     }
   }
+
+  /// Posição da sugestão que deixa na mensagem exatamente as palavras
+  /// [expected], ou -1. Sem espaço no fim, o modelo também sugere a próxima
+  /// palavra, então não basta a sugestão ser igual à palavra atual.
+  int _rankOf(List<String> expected) => _suggestions.indexWhere(
+    (s) =>
+        WordPredictor.normalize(s).toUpperCase() == expected.last &&
+        _sameList(
+          _words(typist.predictor.accept(_text, s, limit: typist.limit)),
+          expected,
+        ),
+  );
 
   /// Com probabilidade errorRate, uma letra vizinha de [letter] na grade.
   String? _slip(String letter) {

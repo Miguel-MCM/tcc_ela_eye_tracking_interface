@@ -4,10 +4,9 @@
 //   dart run tool/evaluate_predictor.dart
 //   dart run tool/evaluate_predictor.dart --json resultados.json
 //
-// Imprime uma tabela em Markdown com os cenários: o digitador sem erros; com
-// 10% de letras trocadas por vizinhas e notadas só no fim da palavra, sem e
-// com a tolerância a erros do preditor; e a avaliação nas próprias frases de
-// treino (só como referência). Ver lib/metrics/predictor_evaluation.dart.
+// Imprime uma tabela em Markdown com um cenário por coluna. Os erros são
+// letras trocadas por vizinhas, notadas só no fim da palavra. Ver
+// lib/metrics/predictor_evaluation.dart.
 
 import 'dart:convert';
 import 'dart:io';
@@ -20,7 +19,7 @@ Future<void> main(List<String> args) async {
   final phrases = await WordPredictor.loadPhrases(
     (path) => File(path).readAsString(),
   );
-  final unique = deduplicate(phrases).length;
+  final uniqueCount = deduplicate(phrases).length;
   SimulatedTypist withErrors(WordPredictor predictor) => SimulatedTypist(
     predictor,
     errorRate: 0.1,
@@ -41,7 +40,7 @@ Future<void> main(List<String> args) async {
   stdout
     ..writeln(
       'Corpus: ${phrases.length} frases, '
-      '$unique após remover repetidas.',
+      '$uniqueCount após remover repetidas.',
     )
     ..writeln('Validação cruzada em 10 partes, semente 42, 3 sugestões.')
     ..writeln()
@@ -77,7 +76,7 @@ Future<void> main(List<String> args) async {
   if (jsonIndex >= 0 && jsonIndex + 1 < args.length) {
     final out = {
       'corpusPhrases': phrases.length,
-      'uniquePhrases': unique,
+      'uniquePhrases': uniqueCount,
       'folds': 10,
       'seed': 42,
       'scenarios': {
