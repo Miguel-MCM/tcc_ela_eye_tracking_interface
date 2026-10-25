@@ -2,8 +2,8 @@ import 'dart:math';
 
 import '../models/gaze_command.dart';
 import '../models/keyboard_layout.dart';
+import '../models/keyboard_navigation.dart';
 import '../models/word_predictor.dart';
-import 'keyboard_navigation.dart';
 import 'typing_event.dart';
 import 'typing_metrics.dart';
 
@@ -14,21 +14,37 @@ import 'typing_metrics.dart';
 /// [TypingMetrics] das sessões reais. Assim a simulação e os testes com
 /// usuários medem exatamente as mesmas coisas.
 ///
-/// O digitador conhece a frase de antemão e não erra: o resultado é um limite
-/// superior do que as sugestões podem economizar, não uma previsão do
-/// desempenho de uma pessoa.
+/// O digitador conhece a frase de antemão e, por padrão, não erra: o
+/// resultado é um limite superior do que as sugestões podem economizar, não
+/// uma previsão do desempenho de uma pessoa. Com [errorRate] ele erra letras.
 class SimulatedTypist {
   SimulatedTypist(
     this.predictor, {
     this.limit = 3,
+    this.errorRate = 0,
+    this.noticesErrors = true,
     this.commandDuration = const Duration(milliseconds: 1500),
     List<List<KeyDef>> layout = kKeyboardRows,
-  }) : _navigation = KeyboardNavigation(layout);
+    Random? random,
+  }) : _navigation = KeyboardNavigation(layout),
+       _random = random ?? Random(0);
 
   final WordPredictor predictor;
 
   /// Quantas sugestões a barra mostra.
   final int limit;
+
+  /// Probabilidade de cada letra sair trocada por uma letra vizinha na grade,
+  /// como numa seta a mais ou a menos.
+  final double errorRate;
+
+  /// Se o digitador percebe um erro logo depois de cometê-lo. Se não, ele
+  /// segue digitando a palavra ("BWBE…") e só nota o erro no fim dela. Nos
+  /// dois casos, a cada passo ele faz o que custar menos: aceitar a sugestão
+  /// certa, se ela aparecer, ou apagar até o erro e redigitar.
+  final bool noticesErrors;
+
+  final Random _random;
 
   /// Tempo de cada comando; com o dwell padrão do rastreador, 1,5 s. Só afeta
   /// o WPM, que por isso é uma estimativa e não uma medida.
@@ -97,12 +113,19 @@ class _Session {
   /// o modelo pode estar sugerindo a próxima palavra, e não a atual.
   void typeWord(List<String> expected, {required bool last}) {
     final word = expected.last;
-    var typed = 0;
+    // Letras desta palavra já na mensagem, certas ou não.
+    var typed = '';
+    var erasing = false;
     while (true) {
+      var correct = 0;
+      while (correct < typed.length && typed[correct] == word[correct]) {
+        correct++;
+      }
+      final wrong = typed.length - correct;
       // Com a palavra inteira já digitada, aceitar a sugestão igual a ela só
       // serviria de atalho para o espaço. TypingMetrics conta isso à parte
       // (shortcutAcceptances), e o digitador não usa esse atalho.
-      final suggestions = typed < word.length ? _suggestions : const <String>[];
+      final suggestions = typed != word ? _suggestions : const <String>[];
       final rank = suggestions.indexWhere(
         (s) =>
             WordPredictor.normalize(s).toUpperCase() == word &&
@@ -111,19 +134,49 @@ class _Session {
               expected,
             ),
       );
-      final rest = word.substring(typed).split('');
-      final typingCost = _typingCost([...rest, if (!last) ' ']);
+      final typingCost = _typingCost([
+        for (var i = 0; i < wrong; i++) 'APAGAR',
+        ...word.substring(correct).split(''),
+        if (!last) ' ',
+      ]);
       if (rank >= 0 && _acceptCost(rank) <= typingCost) {
         _accept(rank);
         return;
       }
-      if (typed == word.length) {
+      erasing =
+          wrong > 0 &&
+          (erasing || typist.noticesErrors || typed.length >= word.length);
+      if (erasing) {
+        pressLabel('APAGAR');
+        typed = typed.substring(0, typed.length - 1);
+        continue;
+      }
+      if (typed == word) {
         if (!last) pressLabel('ESPAÇO');
         return;
       }
-      pressLabel(word[typed]);
-      typed++;
+      final letter = _slip(word[typed.length]) ?? word[typed.length];
+      pressLabel(letter);
+      typed += letter;
     }
+  }
+
+  /// Com probabilidade errorRate, uma letra vizinha de [letter] na grade.
+  String? _slip(String letter) {
+    if (typist.errorRate == 0 ||
+        typist._random.nextDouble() >= typist.errorRate) {
+      return null;
+    }
+    final options = [
+      for (final label in _navigation.neighbors(letter))
+        if (_isLetter(label)) label,
+    ];
+    return options[typist._random.nextInt(options.length)];
+  }
+
+  bool _isLetter(String label) {
+    final (row, column) = _navigation.find(label);
+    return _layout[row][column].isCharacter;
   }
 
   void pressLabel(String label) {
@@ -272,9 +325,10 @@ class EvaluationResult {
   void _add(
     List<String> train,
     List<String> test,
+    WordPredictor Function(List<String> train)? model,
     SimulatedTypist Function(WordPredictor predictor)? typist,
   ) {
-    final predictor = WordPredictor(phrases: train);
+    final predictor = model?.call(train) ?? WordPredictor(phrases: train);
     final simulator = typist?.call(predictor) ?? SimulatedTypist(predictor);
     final vocabulary = {for (final p in train) ...WordPredictor.words(p)};
     for (final phrase in test) {
@@ -300,6 +354,7 @@ EvaluationResult crossValidate(
   List<String> phrases, {
   int folds = 10,
   int seed = 42,
+  WordPredictor Function(List<String> train)? model,
   SimulatedTypist Function(WordPredictor predictor)? typist,
 }) {
   final unique = deduplicate(phrases)..shuffle(Random(seed));
@@ -314,6 +369,7 @@ EvaluationResult crossValidate(
         for (final (i, p) in unique.indexed)
           if (i % folds == fold) p,
       ],
+      model,
       typist,
     );
   }
@@ -324,10 +380,11 @@ EvaluationResult crossValidate(
 /// para [crossValidate] mostra quanto o modelo depende de já ter visto a frase.
 EvaluationResult evaluateInSample(
   List<String> phrases, {
+  WordPredictor Function(List<String> train)? model,
   SimulatedTypist Function(WordPredictor predictor)? typist,
 }) {
   final unique = deduplicate(phrases);
-  return EvaluationResult().._add(unique, unique, typist);
+  return EvaluationResult().._add(unique, unique, model, typist);
 }
 
 /// Remove frases repetidas, comparando a forma normalizada.

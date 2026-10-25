@@ -2,8 +2,8 @@ import 'dart:math';
 
 import '../models/gaze_command.dart';
 import '../models/keyboard_layout.dart';
+import '../models/keyboard_navigation.dart';
 import '../models/word_predictor.dart';
-import 'keyboard_navigation.dart';
 import 'typing_event.dart';
 
 /// Métricas de digitação calculadas a partir do log de eventos.
@@ -132,7 +132,8 @@ class WordEntry {
 
   final String word;
 
-  /// Menor número de letras digitadas com a palavra entre as sugestões.
+  /// Menor número de letras digitadas (contando as erradas) com a palavra
+  /// entre as sugestões.
   int? predictedAfter;
 
   /// Menor número de letras digitadas com a palavra como primeira sugestão.
@@ -448,14 +449,17 @@ class _Segment {
     return words;
   }
 
-  /// Quantas letras de [word] já estavam digitadas quando a mensagem era
-  /// [shown], ou null se [shown] não estava a caminho dessa palavra.
+  /// Quantas letras já estavam digitadas na posição de [word] quando a
+  /// mensagem era [shown], ou null se [shown] não estava a caminho dessa
+  /// palavra.
+  ///
+  /// As letras não precisam ser prefixo exato de [word]: o preditor tolera
+  /// erros de digitação, então a palavra certa pode ser sugerida depois de
+  /// "BWB". Basta que o trecho não tenha espaço e ainda não seja a palavra.
   static int? _typedLength(String shown, String context, String word) {
     if (shown.startsWith(context)) {
       final rest = shown.substring(context.length);
-      return rest.length < word.length && word.startsWith(rest)
-          ? rest.length
-          : null;
+      return !rest.contains(' ') && rest != word ? rest.length : null;
     }
     // Sem espaço no fim, o preditor já trata a última palavra como completa
     // quando conhece o contexto, e aceitar a sugestão a acrescenta depois dela.

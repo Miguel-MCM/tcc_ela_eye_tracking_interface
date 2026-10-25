@@ -4,12 +4,14 @@
 //   dart run tool/evaluate_predictor.dart
 //   dart run tool/evaluate_predictor.dart --json resultados.json
 //
-// Imprime uma tabela em Markdown com dois cenários: a tela atual e a
-// avaliação nas próprias frases de treino (só como referência). Ver
-// lib/metrics/predictor_evaluation.dart.
+// Imprime uma tabela em Markdown com os cenários: o digitador sem erros; com
+// 10% de letras trocadas por vizinhas e notadas só no fim da palavra, sem e
+// com a tolerância a erros do preditor; e a avaliação nas próprias frases de
+// treino (só como referência). Ver lib/metrics/predictor_evaluation.dart.
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:tcc_ela_eye_tracking_interface/metrics/predictor_evaluation.dart';
 import 'package:tcc_ela_eye_tracking_interface/models/word_predictor.dart';
@@ -19,8 +21,20 @@ Future<void> main(List<String> args) async {
     (path) => File(path).readAsString(),
   );
   final unique = deduplicate(phrases).length;
+  SimulatedTypist withErrors(WordPredictor predictor) => SimulatedTypist(
+    predictor,
+    errorRate: 0.1,
+    noticesErrors: false,
+    random: Random(7),
+  );
   final scenarios = <String, EvaluationResult>{
-    'Tela atual (validação cruzada)': crossValidate(phrases),
+    'Sem erros (validação cruzada)': crossValidate(phrases),
+    '10% de erros, sem tolerância': crossValidate(
+      phrases,
+      model: (train) => WordPredictor(phrases: train, typoMaxCost: 0),
+      typist: withErrors,
+    ),
+    '10% de erros, com tolerância': crossValidate(phrases, typist: withErrors),
     'Nas frases de treino (referência)': evaluateInSample(phrases),
   };
 

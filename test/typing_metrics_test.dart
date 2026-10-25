@@ -167,6 +167,22 @@ void main() {
       expect(counts.acceptedRanks, isEmpty);
     });
 
+    test('palavra sugerida depois de um erro de digitação conta como '
+        'prevista', () {
+      final session = _Session()..type('BWB');
+      session
+        ..show(['beber'])
+        ..accept('beber', 0, 'BEBER ')
+        ..press('FALAR');
+
+      final phrase = session.metrics.phrases.single;
+      final word = phrase.words.single;
+      expect(word.predictedAfter, 3);
+      expect(word.acceptedRank, 0);
+      expect(word.shortcut, isFalse);
+      expect(phrase.counts.completionRate, 1);
+    });
+
     test('palavra prevista mas digitada reduz a utilização', () {
       final session = _Session()..press('C');
       session

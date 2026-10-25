@@ -1,4 +1,8 @@
 import 'dart:convert';
+import 'dart:math';
+
+import 'keyboard_layout.dart';
+import 'keyboard_navigation.dart';
 
 /// Suggests the next word using probabilities from an n-gram model.
 ///
@@ -8,19 +12,52 @@ import 'dart:convert';
 /// Each phrase is padded with [sentenceStart] markers, and unseen contexts
 /// fall back to shorter ones with Stupid Backoff (Brants et al., 2007).
 /// The corpus can be replaced with phrases collected from the user in the future.
+///
+/// Partial words tolerate typing errors: a word is still completed when the
+/// typed letters are a small edit away from one of its prefixes, with errors
+/// between neighboring keys of [layout] costing less (see [typoMaxCost]).
 class WordPredictor {
   WordPredictor({
     required Iterable<String> phrases,
     this.order = 3,
     this.backoffFactor = 0.4,
+    this.typoMaxCost = 1,
+    this.typoMinLength = 3,
+    this.typoPenalty = 0.01,
+    List<List<KeyDef>> layout = kKeyboardRows,
   }) : assert(order >= 2) {
     _build(phrases);
+    final navigation = KeyboardNavigation(layout);
+    for (final row in layout) {
+      for (final key in row.where((key) => key.isCharacter)) {
+        _neighbors[key.label.toLowerCase()] = {
+          for (final label in navigation.neighbors(key.label))
+            label.toLowerCase(),
+        };
+      }
+    }
   }
 
   final int order;
 
   /// Multiplier applied each time the model backs off to a shorter context.
   final double backoffFactor;
+
+  /// Highest edit cost tolerated between the typed letters and a prefix of a
+  /// suggested word; 0 turns the tolerance off. A neighboring key, an extra
+  /// letter or a missing one cost 1; any other wrong key costs 2.
+  final int typoMaxCost;
+
+  /// Letters typed before errors are tolerated. With fewer, almost every word
+  /// is one error away and the suggestions would lose their meaning.
+  final int typoMinLength;
+
+  /// Multiplier applied to a word's score for each unit of edit cost, so
+  /// exact completions usually rank first.
+  final double typoPenalty;
+
+  /// Letters one arrow away from each letter on the keyboard.
+  final Map<String, Set<String>> _neighbors = {};
 
   /// Marks the beginning of a phrase in the n-gram contexts.
   static const sentenceStart = '<s>';
@@ -177,12 +214,15 @@ class WordPredictor {
     );
   }
 
-  /// Stupid Backoff scores for the words that start with [partial].
+  /// Stupid Backoff scores for the words that start with [partial], or are
+  /// within [typoMaxCost] of starting with it.
   ///
   /// S(w | context) = count(context w) / count(context) when the sequence was
   /// seen; otherwise backoffFactor × S(w | shorter context), down to unigrams.
+  /// Words matched with errors are multiplied by typoPenalty ^ cost.
   Map<String, double> _scores(List<String> history, String partial) {
     final scores = <String, double>{};
+    final costs = <String, int?>{};
     var weight = 1.0;
 
     for (var size = order - 1; size >= 0; size--) {
@@ -190,9 +230,11 @@ class WordPredictor {
       final candidates = _counts[size][key];
       if (candidates != null) {
         final total = _totals[size][key]!;
-        for (final entry in candidates.entries) {
-          if (entry.key.startsWith(partial)) {
-            scores.putIfAbsent(entry.key, () => weight * entry.value / total);
+        for (final MapEntry(key: word, value: count) in candidates.entries) {
+          if (scores.containsKey(word)) continue;
+          final cost = costs.putIfAbsent(word, () => _typoCost(partial, word));
+          if (cost != null) {
+            scores[word] = weight * count / total * pow(typoPenalty, cost);
           }
         }
       }
@@ -200,6 +242,38 @@ class WordPredictor {
     }
     return scores;
   }
+
+  /// Edit cost from [typed] to the closest prefix of [word], or null if it is
+  /// above [typoMaxCost].
+  ///
+  /// Levenshtein distance against every prefix at once: the last row of the
+  /// table holds the cost to each prefix `word[:j]`, and the minimum wins.
+  int? _typoCost(String typed, String word) {
+    if (word.startsWith(typed)) return 0;
+    if (typoMaxCost == 0 || typed.length < typoMinLength) return null;
+
+    // previous[j]: cost from the first i - 1 typed letters to word[:j].
+    var previous = List.generate(word.length + 1, (j) => j);
+    for (var i = 1; i <= typed.length; i++) {
+      final current = List.filled(word.length + 1, i);
+      for (var j = 1; j <= word.length; j++) {
+        current[j] = min(
+          min(previous[j], current[j - 1]) + 1,
+          previous[j - 1] + _substitutionCost(typed[i - 1], word[j - 1]),
+        );
+      }
+      if (current.reduce(min) > typoMaxCost) return null;
+      previous = current;
+    }
+    final cost = previous.reduce(min);
+    return cost <= typoMaxCost ? cost : null;
+  }
+
+  int _substitutionCost(String typed, String expected) => typed == expected
+      ? 0
+      : _neighbors[expected]?.contains(typed) ?? false
+      ? 1
+      : 2;
 
   void _build(Iterable<String> phrases) {
     _counts = List.generate(order, (_) => <String, Map<String, int>>{});

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tcc_ela_eye_tracking_interface/metrics/predictor_evaluation.dart';
@@ -66,6 +67,29 @@ void main() {
           typist.targetWords(phrase).join(' '),
           reason: phrase,
         );
+      }
+    });
+
+    test('com erros de digitação, toda frase ainda sai como o alvo', () {
+      for (final notices in [true, false]) {
+        final typist = SimulatedTypist(
+          WordPredictor(phrases: phrases),
+          errorRate: 0.2,
+          noticesErrors: notices,
+          random: Random(1),
+        );
+        var erased = 0;
+        for (final phrase in deduplicate(phrases).take(100)) {
+          final typed = typist.type(phrase);
+          if (typed == null) continue;
+          erased += typed.counts.erasedCharacters;
+          expect(
+            WordPredictor.words(typed.text).join(' ').toUpperCase(),
+            typist.targetWords(phrase).join(' '),
+            reason: phrase,
+          );
+        }
+        expect(erased, greaterThan(0), reason: 'os erros acontecem');
       }
     });
 

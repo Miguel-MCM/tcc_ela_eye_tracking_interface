@@ -84,6 +84,52 @@ void main() {
     });
   });
 
+  group('tolerância a erros de digitação', () {
+    final predictor = WordPredictor(
+      phrases: ['eu quero beber água', 'eu quero bem', 'estou com fome'],
+    );
+
+    test('completa a palavra com uma tecla vizinha errada', () {
+      // W é vizinha de E no teclado.
+      expect(predictor.suggest('EU QUERO BWB'), ['beber']);
+      expect(predictor.suggest('ESTOU COM FOMW'), ['fome']);
+    });
+
+    test('tolera uma letra a mais ou a menos', () {
+      expect(predictor.suggest('EU QUERO BEEB'), contains('beber'));
+      expect(predictor.suggest('EU QUERO BBER'), contains('beber'));
+    });
+
+    test('não tolera tecla distante nem dois erros', () {
+      // P fica longe de E.
+      expect(predictor.suggest('EU QUERO BPB'), isEmpty);
+      expect(predictor.suggest('EU QUERO BWBWR'), isEmpty);
+    });
+
+    test('só tolera erros a partir de typoMinLength letras', () {
+      expect(predictor.suggest('EU QUERO BW'), isEmpty);
+    });
+
+    test('a completação exata vem antes da com erro', () {
+      // Com "BEB", "bem" está a um erro (o B a mais); com "BEM", é "beber"
+      // que está a um erro (o M a mais).
+      expect(predictor.suggest('EU QUERO BEB').first, 'beber');
+      expect(predictor.suggest('EU QUERO BEM').first, 'bem');
+    });
+
+    test('typoMaxCost 0 desliga a tolerância', () {
+      final exact = WordPredictor(
+        phrases: ['eu quero beber água'],
+        typoMaxCost: 0,
+      );
+      expect(exact.suggest('EU QUERO BWB'), isEmpty);
+    });
+
+    test('accept substitui a palavra com erro', () {
+      expect(predictor.accept('EU QUERO BWB', 'beber'), 'EU QUERO BEBER ');
+    });
+  });
+
   group('predict', () {
     final predictor = WordPredictor(
       phrases: ['eu quero dormir', 'preciso de ajuda', 'gosto de café'],
