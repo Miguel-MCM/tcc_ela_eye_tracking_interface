@@ -4,12 +4,13 @@
 //   dart run tool/evaluate_predictor.dart
 //   dart run tool/evaluate_predictor.dart --json resultados.json
 //
-// Imprime uma tabela em Markdown com três cenários: a tela atual, a tela
-// mostrando sugestões também com a mensagem vazia, e a avaliação nas próprias
-// frases de treino (só como referência). Ver lib/metrics/predictor_evaluation.dart.
+// Imprime uma tabela em Markdown com um cenário por coluna. Os erros são
+// letras trocadas por vizinhas, notadas só no fim da palavra. Ver
+// lib/metrics/predictor_evaluation.dart.
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:tcc_ela_eye_tracking_interface/metrics/predictor_evaluation.dart';
 import 'package:tcc_ela_eye_tracking_interface/models/word_predictor.dart';
@@ -18,18 +19,29 @@ Future<void> main(List<String> args) async {
   final phrases = await WordPredictor.loadPhrases(
     (path) => File(path).readAsString(),
   );
+  final uniqueCount = deduplicate(phrases).length;
+  SimulatedTypist withErrors(WordPredictor predictor) => SimulatedTypist(
+    predictor,
+    errorRate: 0.1,
+    noticesErrors: false,
+    random: Random(7),
+  );
   final scenarios = <String, EvaluationResult>{
-    'Tela atual (validação cruzada)': crossValidate(phrases),
-    'Sugestões com mensagem vazia (validação cruzada)': crossValidate(
+    'Sem erros (validação cruzada)': crossValidate(phrases),
+    '10% de erros, sem tolerância': crossValidate(
       phrases,
-      typist: (p) => SimulatedTypist(p, showSuggestionsWhenEmpty: true),
+      model: (train) => WordPredictor(phrases: train, typoMaxCost: 0),
+      typist: withErrors,
     ),
+    '10% de erros, com tolerância': crossValidate(phrases, typist: withErrors),
     'Nas frases de treino (referência)': evaluateInSample(phrases),
   };
 
   stdout
-    ..writeln('Corpus: ${phrases.length} frases, '
-        '${deduplicate(phrases).length} após remover repetidas.')
+    ..writeln(
+      'Corpus: ${phrases.length} frases, '
+      '$uniqueCount após remover repetidas.',
+    )
     ..writeln('Validação cruzada em 10 partes, semente 42, 3 sugestões.')
     ..writeln()
     ..writeln('| Métrica | ${scenarios.keys.join(' | ')} |')
@@ -54,8 +66,7 @@ Future<void> main(List<String> args) async {
     'Letras digitadas antes da previsão (média)': (r) =>
         number(r.counts.meanCharactersBeforePrediction),
     'Palavras inseridas por sugestão': (r) => percent(r.counts.completionRate),
-    'WPM estimado (1,5 s por comando)': (r) =>
-        number(r.counts.wordsPerMinute),
+    'WPM estimado (1,5 s por comando)': (r) => number(r.counts.wordsPerMinute),
   };
   rows.forEach((name, cell) {
     stdout.writeln('| $name | ${scenarios.values.map(cell).join(' | ')} |');
@@ -65,7 +76,7 @@ Future<void> main(List<String> args) async {
   if (jsonIndex >= 0 && jsonIndex + 1 < args.length) {
     final out = {
       'corpusPhrases': phrases.length,
-      'uniquePhrases': deduplicate(phrases).length,
+      'uniquePhrases': uniqueCount,
       'folds': 10,
       'seed': 42,
       'scenarios': {
@@ -78,9 +89,9 @@ Future<void> main(List<String> args) async {
           },
       },
     };
-    await File(args[jsonIndex + 1]).writeAsString(
-      const JsonEncoder.withIndent('  ').convert(out),
-    );
+    await File(
+      args[jsonIndex + 1],
+    ).writeAsString(const JsonEncoder.withIndent('  ').convert(out));
     stdout.writeln('\nJSON gravado em ${args[jsonIndex + 1]}');
   }
 }

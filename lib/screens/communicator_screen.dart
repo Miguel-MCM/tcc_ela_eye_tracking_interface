@@ -97,9 +97,7 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
 
   Future<void> _loadWordPredictor() async {
     try {
-      final predictor = await WordPredictor.defaultModel(
-        rootBundle.loadString,
-      );
+      final predictor = await WordPredictor.defaultModel(rootBundle.loadString);
       if (!mounted) return;
       setState(() => _wordPredictor = predictor);
       _recordSuggestions();
@@ -216,10 +214,7 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
       return;
     }
 
-    if (delta < 0 &&
-        _row == 0 &&
-        _message.isNotEmpty &&
-        _suggestions.isNotEmpty) {
+    if (delta < 0 && _row == 0 && _suggestions.isNotEmpty) {
       setState(() => _selectedSuggestion = 0);
       return;
     }
@@ -293,12 +288,8 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
     _acceptSuggestion(suggestion);
   }
 
-  /// A barra só mostra sugestões quando há mensagem.
   void _recordSuggestions() {
-    _metrics.recordSuggestions(
-      _message,
-      _message.isEmpty ? const [] : _suggestions,
-    );
+    _metrics.recordSuggestions(_message, _suggestions);
   }
 
   Future<void> _speakMessage() async {
@@ -322,25 +313,14 @@ class _CommunicatorScreenState extends State<CommunicatorScreen> {
     final predictor = _wordPredictor;
     if (predictor == null) return;
 
-    final prediction = predictor.predict(_message);
-    final rank = prediction.words.indexOf(suggestion);
-    // Só o modelo sabe se a última palavra estava pela metade: deduzir isso
-    // do texto confunde "D" + "de" com "D" seguido da palavra "de".
-    final kept = _message.trimRight();
-    final prefix = prediction.completesLastWord
-        ? kept.replaceFirst(_lastWord, '')
-        : kept.isEmpty
-        ? ''
-        : '$kept ';
+    final rank = _suggestions.indexOf(suggestion);
     setState(() {
-      _message = '$prefix${suggestion.toUpperCase()} ';
+      _message = predictor.accept(_message, suggestion);
       _selectedSuggestion = null;
     });
     _metrics.recordAcceptance(suggestion, rank, _message);
     _recordSuggestions();
   }
-
-  static final _lastWord = RegExp(r'\S+$');
 
   @override
   Widget build(BuildContext context) {

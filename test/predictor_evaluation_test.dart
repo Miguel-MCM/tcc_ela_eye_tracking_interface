@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tcc_ela_eye_tracking_interface/metrics/predictor_evaluation.dart';
@@ -27,16 +28,12 @@ void main() {
       expect(phrase.counts.keystrokeSavings, greaterThan(0));
     });
 
-    test('a tela atual não sugere a primeira palavra; a alternativa sim', () {
+    test('sugere a primeira palavra com a mensagem vazia', () {
       final predictor = WordPredictor(phrases: ['estou com dor']);
 
-      final current = SimulatedTypist(predictor).type('estou com dor')!;
-      final alternative = SimulatedTypist(
-        predictor,
-        showSuggestionsWhenEmpty: true,
-      ).type('estou com dor')!;
-      expect(current.words.first.predictedAfter, greaterThan(0));
-      expect(alternative.words.first.predictedAfter, 0);
+      final phrase = SimulatedTypist(predictor).type('estou com dor')!;
+      expect(phrase.words.first.predictedAfter, 0);
+      expect(phrase.words.first.acceptedRank, 0);
     });
 
     test('ignora o que não existe no teclado', () {
@@ -70,6 +67,29 @@ void main() {
           typist.targetWords(phrase).join(' '),
           reason: phrase,
         );
+      }
+    });
+
+    test('com erros de digitação, toda frase ainda sai como o alvo', () {
+      for (final notices in [true, false]) {
+        final typist = SimulatedTypist(
+          WordPredictor(phrases: phrases),
+          errorRate: 0.2,
+          noticesErrors: notices,
+          random: Random(1),
+        );
+        var erased = 0;
+        for (final phrase in deduplicate(phrases).take(100)) {
+          final typed = typist.type(phrase);
+          if (typed == null) continue;
+          erased += typed.counts.erasedCharacters;
+          expect(
+            WordPredictor.words(typed.text).join(' ').toUpperCase(),
+            typist.targetWords(phrase).join(' '),
+            reason: phrase,
+          );
+        }
+        expect(erased, greaterThan(0), reason: 'os erros acontecem');
       }
     });
 

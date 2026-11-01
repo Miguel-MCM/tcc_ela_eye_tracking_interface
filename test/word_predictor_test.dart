@@ -84,6 +84,52 @@ void main() {
     });
   });
 
+  group('tolerância a erros de digitação', () {
+    final predictor = WordPredictor(
+      phrases: ['eu quero beber água', 'eu quero bem', 'estou com fome'],
+    );
+
+    test('completa a palavra com uma tecla vizinha errada', () {
+      // W é vizinha de E no teclado.
+      expect(predictor.suggest('EU QUERO BWB'), ['beber']);
+      expect(predictor.suggest('ESTOU COM FOMW'), ['fome']);
+    });
+
+    test('tolera uma letra a mais ou a menos', () {
+      expect(predictor.suggest('EU QUERO BEEB'), contains('beber'));
+      expect(predictor.suggest('EU QUERO BBER'), contains('beber'));
+    });
+
+    test('não tolera tecla distante nem dois erros', () {
+      // P fica longe de E.
+      expect(predictor.suggest('EU QUERO BPB'), isEmpty);
+      expect(predictor.suggest('EU QUERO BWBWR'), isEmpty);
+    });
+
+    test('só tolera erros a partir de typoMinLength letras', () {
+      expect(predictor.suggest('EU QUERO BW'), isEmpty);
+    });
+
+    test('a completação exata vem antes da com erro', () {
+      // Com "BEB", "bem" está a um erro (o B a mais); com "BEM", é "beber"
+      // que está a um erro (o M a mais).
+      expect(predictor.suggest('EU QUERO BEB').first, 'beber');
+      expect(predictor.suggest('EU QUERO BEM').first, 'bem');
+    });
+
+    test('typoMaxCost 0 desliga a tolerância', () {
+      final exact = WordPredictor(
+        phrases: ['eu quero beber água'],
+        typoMaxCost: 0,
+      );
+      expect(exact.suggest('EU QUERO BWB'), isEmpty);
+    });
+
+    test('accept substitui a palavra com erro', () {
+      expect(predictor.accept('EU QUERO BWB', 'beber'), 'EU QUERO BEBER ');
+    });
+  });
+
   group('predict', () {
     final predictor = WordPredictor(
       phrases: ['eu quero dormir', 'preciso de ajuda', 'gosto de café'],
@@ -92,19 +138,58 @@ void main() {
     test('palavra pela metade é completada', () {
       final prediction = predictor.predict('EU QUERO D');
 
-      expect(prediction.completesLastWord, isTrue);
+      expect(prediction.completesLastWord, [true, true]);
       expect(prediction.words, ['dormir', 'de']);
     });
 
     test('contexto conhecido sem espaço sugere a próxima palavra', () {
       final prediction = predictor.predict('EU QUERO');
 
-      expect(prediction.completesLastWord, isFalse);
+      expect(prediction.completesLastWord.first, isFalse);
       expect(prediction.words.first, 'dormir');
     });
 
+    test('accept completa a palavra pela metade ou acrescenta a próxima', () {
+      expect(predictor.accept('EU QUERO D', 'de'), 'EU QUERO DE ');
+      expect(predictor.accept('EU QUERO', 'dormir'), 'EU QUERO DORMIR ');
+      expect(predictor.accept('EU QUERO D ', 'de'), 'EU QUERO D DE ');
+      expect(predictor.accept('', 'eu'), 'EU ');
+    });
+
     test('depois de um espaço sugere a próxima palavra', () {
-      expect(predictor.predict('EU QUERO D ').completesLastWord, isFalse);
+      expect(
+        predictor.predict('EU QUERO D ').completesLastWord,
+        everyElement(isFalse),
+      );
+    });
+
+    test('letra que também é palavra mistura completações e próximas '
+        'palavras', () {
+      final predictor = WordPredictor(
+        phrases: [
+          'estou com fome',
+          'estou cansado',
+          'eu quero água',
+          'eu quero comer',
+          'e depois',
+        ],
+      );
+
+      final prediction = predictor.predict('E');
+      // "estou" e "eu" completam o "E"; "depois" vem depois da palavra "e".
+      expect(prediction.words, ['estou', 'eu', 'depois']);
+      expect(prediction.completesLastWord, [true, true, false]);
+    });
+
+    test('a própria letra não é sugerida como completação de si mesma', () {
+      final predictor = WordPredictor(phrases: ['e depois', 'eu quero']);
+
+      // Aceitar "e" como completação de "E" só acrescentaria um espaço; a
+      // palavra "e" já está coberta pelas próximas palavras.
+      final prediction = predictor.predict('E', limit: 10);
+      for (final (i, word) in prediction.words.indexed) {
+        if (word == 'e') expect(prediction.completesLastWord[i], isFalse);
+      }
     });
   });
 }

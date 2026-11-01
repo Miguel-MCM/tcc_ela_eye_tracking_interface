@@ -148,6 +148,41 @@ void main() {
       expect(counts.suggestionUtilization, 1);
     });
 
+    test('aceitar a palavra já digitada conta como atalho, não como '
+        'inserida por sugestão', () {
+      final session = _Session()..type('AGUA');
+      session
+        ..show(['água'])
+        ..accept('água', 0, 'ÁGUA ')
+        ..press('FALAR');
+
+      final phrase = session.metrics.phrases.single;
+      final counts = phrase.counts;
+      expect(phrase.words.single.shortcut, isTrue);
+      expect(phrase.words.single.toJson()['entry'], 'shortcut');
+      expect(counts.acceptances, 1);
+      expect(counts.shortcutAcceptances, 1);
+      expect(counts.predictionAccuracy, 0);
+      expect(counts.completionRate, 0);
+      expect(counts.acceptedRanks, isEmpty);
+    });
+
+    test('palavra sugerida depois de um erro de digitação conta como '
+        'prevista', () {
+      final session = _Session()..type('BWB');
+      session
+        ..show(['beber'])
+        ..accept('beber', 0, 'BEBER ')
+        ..press('FALAR');
+
+      final phrase = session.metrics.phrases.single;
+      final word = phrase.words.single;
+      expect(word.predictedAfter, 3);
+      expect(word.acceptedRank, 0);
+      expect(word.shortcut, isFalse);
+      expect(phrase.counts.completionRate, 1);
+    });
+
     test('palavra prevista mas digitada reduz a utilização', () {
       final session = _Session()..press('C');
       session

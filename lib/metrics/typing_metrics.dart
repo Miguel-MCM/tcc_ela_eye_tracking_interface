@@ -2,6 +2,7 @@ import 'dart:math';
 
 import '../models/gaze_command.dart';
 import '../models/keyboard_layout.dart';
+import '../models/keyboard_navigation.dart';
 import '../models/word_predictor.dart';
 import 'typing_event.dart';
 
@@ -131,7 +132,8 @@ class WordEntry {
 
   final String word;
 
-  /// Menor número de letras digitadas com a palavra entre as sugestões.
+  /// Menor número de letras digitadas (contando as erradas) com a palavra
+  /// entre as sugestões.
   int? predictedAfter;
 
   /// Menor número de letras digitadas com a palavra como primeira sugestão.
@@ -140,12 +142,20 @@ class WordEntry {
   /// Posição da sugestão aceita (0 é a primeira), ou null se foi digitada.
   int? acceptedRank;
 
+  /// A palavra foi digitada por inteiro e só depois aceita como sugestão,
+  /// como atalho para o espaço ou para o acento ("AGUA" → "ÁGUA ").
+  bool shortcut = false;
+
   bool get predicted => predictedAfter != null;
   bool get accepted => acceptedRank != null;
 
   Map<String, Object?> toJson() => {
     'word': word,
-    'entry': accepted ? 'suggestion' : 'typed',
+    'entry': accepted
+        ? 'suggestion'
+        : shortcut
+        ? 'shortcut'
+        : 'typed',
     'predictedAfterCharacters': predictedAfter,
     'top1AfterCharacters': top1After,
     'acceptedRank': acceptedRank == null ? null : acceptedRank! + 1,
@@ -183,6 +193,10 @@ class TypingCounts {
 
   /// Sugestões aceitas cuja palavra não ficou na frase falada.
   int rejectedAcceptances = 0;
+
+  /// Sugestões aceitas com a palavra já digitada por inteiro. Não contam em
+  /// [wordsAccepted], que assim nunca passa de [wordsPredicted].
+  int shortcutAcceptances = 0;
 
   int wordsAccepted = 0;
   int wordsPredicted = 0;
@@ -252,6 +266,7 @@ class TypingCounts {
     erasedCharacters += other.erasedCharacters;
     acceptances += other.acceptances;
     rejectedAcceptances += other.rejectedAcceptances;
+    shortcutAcceptances += other.shortcutAcceptances;
     wordsAccepted += other.wordsAccepted;
     wordsPredicted += other.wordsPredicted;
     wordsPredictedTop1 += other.wordsPredictedTop1;
@@ -282,6 +297,7 @@ class TypingCounts {
       'completionRate': _round(completionRate),
       'utilization': _round(suggestionUtilization),
       'acceptances': acceptances,
+      'shortcutAcceptances': shortcutAcceptances,
       // Posições a partir de 1, como aparecem na tela.
       'acceptedRanks': {
         for (final rank in acceptedRanks.keys.toList()..sort())
@@ -412,10 +428,18 @@ class _Segment {
       final index = words.indexWhere(
         (w) =>
             !w.entry.accepted &&
+            !w.entry.shortcut &&
             WordPredictor.normalize(spoken.substring(0, w.end)) == accepted,
       );
       if (index < 0) {
         counts.rejectedAcceptances++;
+        continue;
+      }
+      // Sem ter aparecido antes de completa, a palavra foi digitada, não
+      // prevista: a sugestão só serviu de atalho.
+      if (!words[index].entry.predicted) {
+        words[index].entry.shortcut = true;
+        counts.shortcutAcceptances++;
         continue;
       }
       final rank = acceptance.rank!;
@@ -425,14 +449,17 @@ class _Segment {
     return words;
   }
 
-  /// Quantas letras de [word] já estavam digitadas quando a mensagem era
-  /// [shown], ou null se [shown] não estava a caminho dessa palavra.
+  /// Quantas letras já estavam digitadas na posição de [word] quando a
+  /// mensagem era [shown], ou null se [shown] não estava a caminho dessa
+  /// palavra.
+  ///
+  /// As letras não precisam ser prefixo exato de [word]: o preditor tolera
+  /// erros de digitação, então a palavra certa pode ser sugerida depois de
+  /// "BWB". Basta que o trecho não tenha espaço e ainda não seja a palavra.
   static int? _typedLength(String shown, String context, String word) {
     if (shown.startsWith(context)) {
       final rest = shown.substring(context.length);
-      return rest.length < word.length && word.startsWith(rest)
-          ? rest.length
-          : null;
+      return !rest.contains(' ') && rest != word ? rest.length : null;
     }
     // Sem espaço no fim, o preditor já trata a última palavra como completa
     // quando conhece o contexto, e aceitar a sugestão a acrescenta depois dela.
@@ -466,6 +493,7 @@ class _Keyboard {
   }
 
   final List<List<KeyDef>> layout;
+  late final _navigation = KeyboardNavigation(layout);
   final _letters = <String, (int, int)>{};
   (int, int)? _space;
   (int, int)? _clear;
@@ -483,7 +511,7 @@ class _Keyboard {
     var selections = 0;
     void press((int, int)? key) {
       if (key == null) return;
-      interactions += _distance(position, key) + 1;
+      interactions += _navigation.path(position, key).length + 1;
       selections++;
       position = key;
     }
@@ -494,30 +522,6 @@ class _Keyboard {
     }
     press(_speak);
     return (interactions, selections);
-  }
-
-  int _distance((int, int) from, (int, int) to) {
-    final distances = {from: 0};
-    final queue = [from];
-    for (var i = 0; i < queue.length; i++) {
-      final current = queue[i];
-      if (current == to) return distances[current]!;
-      for (final next in _neighbors(current)) {
-        if (distances.containsKey(next)) continue;
-        distances[next] = distances[current]! + 1;
-        queue.add(next);
-      }
-    }
-    throw StateError('Tecla inalcançável: $to');
-  }
-
-  Iterable<(int, int)> _neighbors((int, int) position) sync* {
-    final (row, column) = position;
-    for (final delta in const [-1, 1]) {
-      final r = (row + delta).clamp(0, layout.length - 1);
-      yield (r, column.clamp(0, layout[r].length - 1));
-      yield (row, (column + delta).clamp(0, layout[row].length - 1));
-    }
   }
 }
 
