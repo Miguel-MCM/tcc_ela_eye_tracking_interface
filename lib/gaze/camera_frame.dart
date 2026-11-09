@@ -70,9 +70,12 @@ class Nv21Frame {
         final v = bytes[uvIndex].toDouble() - 128.0;
         final u = bytes[uvIndex + 1].toDouble() - 128.0;
 
-        final r = (y + 1.370705 * v).clamp(0.0, 255.0) / 255.0;
-        final g = (y - 0.337633 * u - 0.698001 * v).clamp(0.0, 255.0) / 255.0;
-        final b = (y + 1.732446 * u).clamp(0.0, 255.0) / 255.0;
+        // BT.601 de faixa completa (JFIF): a câmera do Android entrega NV21
+        // nessa faixa, e é com ela que os JPEG do MPIIGaze foram decodificados
+        // no treino.
+        final r = (y + 1.402 * v).clamp(0.0, 255.0) / 255.0;
+        final g = (y - 0.344136 * u - 0.714136 * v).clamp(0.0, 255.0) / 255.0;
+        final b = (y + 1.772 * u).clamp(0.0, 255.0) / 255.0;
 
         final i = dy * size + dx;
         out[i] = r;

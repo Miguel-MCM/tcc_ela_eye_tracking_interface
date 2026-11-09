@@ -50,6 +50,23 @@ void main() {
     expect(out.every((v) => v >= 0.0 && v <= 1.0), isTrue);
   });
 
+  test('cor segue a BT.601 de faixa completa, com V antes de U', () {
+    const w = 64, h = 64;
+    final bytes = Uint8List(w * h + w * h ~/ 2)..fillRange(0, w * h, 100);
+    for (var i = w * h; i < bytes.length; i += 2) {
+      bytes[i] = 200; // Cr
+      bytes[i + 1] = 150; // Cb
+    }
+    final t = cropTransform(p(20, 32), p(44, 32), const CropParams());
+    final out = Float32List(3 * 128 * 128);
+    Nv21Frame(bytes, w, h, 0).sampleCrop(t, 128, out);
+
+    const plane = 128 * 128;
+    expect(out[0] * 255, closeTo(100 + 1.402 * 72, 1e-3));
+    expect(out[plane] * 255, closeTo(100 - 0.344136 * 22 - 0.714136 * 72, 1e-3));
+    expect(out[2 * plane] * 255, closeTo(100 + 1.772 * 22, 1e-3));
+  });
+
   test('amostragem fora do buffer é limitada, não estoura', () {
     final f = frame(64, 64, 0);
     // olho na quina: boa parte do recorte cai fora do quadro
