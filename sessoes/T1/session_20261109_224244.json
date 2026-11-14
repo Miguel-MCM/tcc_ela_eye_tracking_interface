@@ -1,0 +1,492 @@
+{
+  "schemaVersion": 1,
+  "startedAt": "2026-11-09T22:42:44.736346",
+  "savedAt": "2026-11-09T22:46:00.240878",
+  "summary": {
+    "phrases": 1,
+    "durationSeconds": 139.627,
+    "characters": 3,
+    "words": 1,
+    "kspc": {
+      "interactions": 13.3333,
+      "selections": 2.6667
+    },
+    "keystrokeSavings": {
+      "interactions": -1.1053,
+      "selections": -1.0
+    },
+    "wordsPerMinute": 0.2578,
+    "secondsPerInteraction": 3.4907,
+    "prediction": {
+      "accuracyTop1": 1.0,
+      "accuracy": 1.0,
+      "meanCharactersBeforePrediction": 2.0,
+      "completionRate": 0.0,
+      "utilization": 0.0,
+      "acceptances": 0,
+      "shortcutAcceptances": 0,
+      "acceptedRanks": {}
+    },
+    "errors": {
+      "correctedErrorRate": 0.4,
+      "erasedCharacters": 2,
+      "backspaces": 2,
+      "clears": 0,
+      "rejectedAcceptances": 0,
+      "rejectedAcceptanceRate": null
+    },
+    "interactions": {
+      "total": 40,
+      "selections": 8,
+      "gaze": 40,
+      "touch": 0,
+      "baseline": 19,
+      "baselineSelections": 4
+    }
+  },
+  "phrases": [
+    {
+      "text": "SIM",
+      "startSeconds": 55.76,
+      "durationSeconds": 139.627,
+      "characters": 3,
+      "words": [
+        {
+          "word": "SIM",
+          "entry": "typed",
+          "predictedAfterCharacters": 2,
+          "top1AfterCharacters": 4,
+          "acceptedRank": null
+        }
+      ],
+      "kspc": {
+        "interactions": 13.3333,
+        "selections": 2.6667
+      },
+      "keystrokeSavings": {
+        "interactions": -1.1053,
+        "selections": -1.0
+      },
+      "wordsPerMinute": 0.2578,
+      "secondsPerInteraction": 3.4907,
+      "prediction": {
+        "accuracyTop1": 1.0,
+        "accuracy": 1.0,
+        "meanCharactersBeforePrediction": 2.0,
+        "completionRate": 0.0,
+        "utilization": 0.0,
+        "acceptances": 0,
+        "shortcutAcceptances": 0,
+        "acceptedRanks": {}
+      },
+      "errors": {
+        "correctedErrorRate": 0.4,
+        "erasedCharacters": 2,
+        "backspaces": 2,
+        "clears": 0,
+        "rejectedAcceptances": 0,
+        "rejectedAcceptanceRate": null
+      },
+      "interactions": {
+        "total": 40,
+        "selections": 8,
+        "gaze": 40,
+        "touch": 0,
+        "baseline": 19,
+        "baselineSelections": 4
+      }
+    }
+  ],
+  "events": [
+    {
+      "t": 786,
+      "type": "suggestions",
+      "text": "",
+      "suggestions": [
+        "estou",
+        "coloque",
+        "me"
+      ]
+    },
+    {
+      "t": 55760,
+      "type": "command",
+      "command": "left",
+      "source": "gaze"
+    },
+    {
+      "t": 57547,
+      "type": "command",
+      "command": "down",
+      "source": "gaze"
+    },
+    {
+      "t": 60888,
+      "type": "command",
+      "command": "right",
+      "source": "gaze"
+    },
+    {
+      "t": 67012,
+      "type": "command",
+      "command": "select",
+      "source": "gaze"
+    },
+    {
+      "t": 67013,
+      "type": "key",
+      "action": "character",
+      "label": "S",
+      "row": 1,
+      "column": 1,
+      "text": "S"
+    },
+    {
+      "t": 67014,
+      "type": "suggestions",
+      "text": "S",
+      "suggestions": [
+        "sinto",
+        "se",
+        "sentindo"
+      ]
+    },
+    {
+      "t": 69901,
+      "type": "command",
+      "command": "up",
+      "source": "gaze"
+    },
+    {
+      "t": 72957,
+      "type": "command",
+      "command": "right",
+      "source": "gaze"
+    },
+    {
+      "t": 74564,
+      "type": "command",
+      "command": "right",
+      "source": "gaze"
+    },
+    {
+      "t": 76144,
+      "type": "command",
+      "command": "right",
+      "source": "gaze"
+    },
+    {
+      "t": 77726,
+      "type": "command",
+      "command": "right",
+      "source": "gaze"
+    },
+    {
+      "t": 79361,
+      "type": "command",
+      "command": "right",
+      "source": "gaze"
+    },
+    {
+      "t": 81892,
+      "type": "command",
+      "command": "right",
+      "source": "gaze"
+    },
+    {
+      "t": 85673,
+      "type": "command",
+      "command": "select",
+      "source": "gaze"
+    },
+    {
+      "t": 85673,
+      "type": "key",
+      "action": "character",
+      "label": "I",
+      "row": 0,
+      "column": 7,
+      "text": "SI"
+    },
+    {
+      "t": 85674,
+      "type": "suggestions",
+      "text": "SI",
+      "suggestions": [
+        "sinto",
+        "sim",
+        "silêncio"
+      ]
+    },
+    {
+      "t": 104524,
+      "type": "command",
+      "command": "select",
+      "source": "gaze"
+    },
+    {
+      "t": 104524,
+      "type": "key",
+      "action": "character",
+      "label": "I",
+      "row": 0,
+      "column": 7,
+      "text": "SII"
+    },
+    {
+      "t": 104535,
+      "type": "suggestions",
+      "text": "SII",
+      "suggestions": [
+        "sinto",
+        "sim",
+        "silêncio"
+      ]
+    },
+    {
+      "t": 107244,
+      "type": "command",
+      "command": "up",
+      "source": "gaze"
+    },
+    {
+      "t": 109327,
+      "type": "command",
+      "command": "down",
+      "source": "gaze"
+    },
+    {
+      "t": 111030,
+      "type": "command",
+      "command": "down",
+      "source": "gaze"
+    },
+    {
+      "t": 119891,
+      "type": "command",
+      "command": "right",
+      "source": "gaze"
+    },
+    {
+      "t": 123187,
+      "type": "command",
+      "command": "down",
+      "source": "gaze"
+    },
+    {
+      "t": 124909,
+      "type": "command",
+      "command": "select",
+      "source": "gaze"
+    },
+    {
+      "t": 124909,
+      "type": "key",
+      "action": "character",
+      "label": "M",
+      "row": 2,
+      "column": 6,
+      "text": "SIIM"
+    },
+    {
+      "t": 124913,
+      "type": "suggestions",
+      "text": "SIIM",
+      "suggestions": [
+        "sim"
+      ]
+    },
+    {
+      "t": 126610,
+      "type": "command",
+      "command": "down",
+      "source": "gaze"
+    },
+    {
+      "t": 129143,
+      "type": "command",
+      "command": "left",
+      "source": "gaze"
+    },
+    {
+      "t": 132903,
+      "type": "command",
+      "command": "select",
+      "source": "gaze"
+    },
+    {
+      "t": 132903,
+      "type": "key",
+      "action": "backspace",
+      "label": "APAGAR",
+      "row": 3,
+      "column": 2,
+      "text": "SII"
+    },
+    {
+      "t": 132907,
+      "type": "suggestions",
+      "text": "SII",
+      "suggestions": [
+        "sinto",
+        "sim",
+        "silêncio"
+      ]
+    },
+    {
+      "t": 134816,
+      "type": "command",
+      "command": "up",
+      "source": "gaze"
+    },
+    {
+      "t": 137915,
+      "type": "command",
+      "command": "down",
+      "source": "gaze"
+    },
+    {
+      "t": 144052,
+      "type": "command",
+      "command": "select",
+      "source": "gaze"
+    },
+    {
+      "t": 144052,
+      "type": "key",
+      "action": "backspace",
+      "label": "APAGAR",
+      "row": 3,
+      "column": 2,
+      "text": "SI"
+    },
+    {
+      "t": 144053,
+      "type": "suggestions",
+      "text": "SI",
+      "suggestions": [
+        "sinto",
+        "sim",
+        "silêncio"
+      ]
+    },
+    {
+      "t": 147077,
+      "type": "command",
+      "command": "up",
+      "source": "gaze"
+    },
+    {
+      "t": 149839,
+      "type": "command",
+      "command": "right",
+      "source": "gaze"
+    },
+    {
+      "t": 151499,
+      "type": "command",
+      "command": "right",
+      "source": "gaze"
+    },
+    {
+      "t": 153031,
+      "type": "command",
+      "command": "right",
+      "source": "gaze"
+    },
+    {
+      "t": 155767,
+      "type": "command",
+      "command": "right",
+      "source": "gaze"
+    },
+    {
+      "t": 158263,
+      "type": "command",
+      "command": "left",
+      "source": "gaze"
+    },
+    {
+      "t": 160895,
+      "type": "command",
+      "command": "right",
+      "source": "gaze"
+    },
+    {
+      "t": 171869,
+      "type": "command",
+      "command": "select",
+      "source": "gaze"
+    },
+    {
+      "t": 171869,
+      "type": "key",
+      "action": "character",
+      "label": "M",
+      "row": 2,
+      "column": 6,
+      "text": "SIM"
+    },
+    {
+      "t": 171874,
+      "type": "suggestions",
+      "text": "SIM",
+      "suggestions": [
+        "é",
+        "para",
+        "sinto"
+      ]
+    },
+    {
+      "t": 173730,
+      "type": "command",
+      "command": "up",
+      "source": "gaze"
+    },
+    {
+      "t": 178138,
+      "type": "command",
+      "command": "down",
+      "source": "gaze"
+    },
+    {
+      "t": 185810,
+      "type": "command",
+      "command": "down",
+      "source": "gaze"
+    },
+    {
+      "t": 188315,
+      "type": "command",
+      "command": "left",
+      "source": "gaze"
+    },
+    {
+      "t": 189860,
+      "type": "command",
+      "command": "left",
+      "source": "gaze"
+    },
+    {
+      "t": 191395,
+      "type": "command",
+      "command": "left",
+      "source": "gaze"
+    },
+    {
+      "t": 195387,
+      "type": "command",
+      "command": "select",
+      "source": "gaze"
+    },
+    {
+      "t": 195388,
+      "type": "key",
+      "action": "speak",
+      "label": "FALAR",
+      "row": 3,
+      "column": 0,
+      "text": "SIM"
+    }
+  ]
+}

@@ -1,0 +1,424 @@
+{
+  "schemaVersion": 1,
+  "startedAt": "2026-11-11T08:31:24.068915",
+  "savedAt": "2026-11-11T08:34:45.182406",
+  "summary": {
+    "phrases": 1,
+    "durationSeconds": 141.032,
+    "characters": 19,
+    "words": 4,
+    "kspc": {
+      "interactions": 1.5263,
+      "selections": 0.3158
+    },
+    "keystrokeSavings": {
+      "interactions": 0.701,
+      "selections": 0.7
+    },
+    "wordsPerMinute": 1.6167,
+    "secondsPerInteraction": 4.8632,
+    "prediction": {
+      "accuracyTop1": 0.75,
+      "accuracy": 1.0,
+      "meanCharactersBeforePrediction": 0.25,
+      "completionRate": 1.0,
+      "utilization": 1.0,
+      "acceptances": 4,
+      "shortcutAcceptances": 0,
+      "acceptedRanks": {
+        "1": 3,
+        "2": 1
+      }
+    },
+    "errors": {
+      "correctedErrorRate": 0.0,
+      "erasedCharacters": 0,
+      "backspaces": 0,
+      "clears": 0,
+      "rejectedAcceptances": 0,
+      "rejectedAcceptanceRate": 0.0
+    },
+    "interactions": {
+      "total": 29,
+      "selections": 6,
+      "gaze": 29,
+      "touch": 0,
+      "baseline": 97,
+      "baselineSelections": 20
+    }
+  },
+  "phrases": [
+    {
+      "text": "EU QUERO BEBER ÁGUA",
+      "startSeconds": 57.511,
+      "durationSeconds": 141.032,
+      "characters": 19,
+      "words": [
+        {
+          "word": "EU",
+          "entry": "suggestion",
+          "predictedAfterCharacters": 1,
+          "top1AfterCharacters": null,
+          "acceptedRank": 2
+        },
+        {
+          "word": "QUERO",
+          "entry": "suggestion",
+          "predictedAfterCharacters": 0,
+          "top1AfterCharacters": 0,
+          "acceptedRank": 1
+        },
+        {
+          "word": "BEBER",
+          "entry": "suggestion",
+          "predictedAfterCharacters": 0,
+          "top1AfterCharacters": 0,
+          "acceptedRank": 1
+        },
+        {
+          "word": "ÁGUA",
+          "entry": "suggestion",
+          "predictedAfterCharacters": 0,
+          "top1AfterCharacters": 0,
+          "acceptedRank": 1
+        }
+      ],
+      "kspc": {
+        "interactions": 1.5263,
+        "selections": 0.3158
+      },
+      "keystrokeSavings": {
+        "interactions": 0.701,
+        "selections": 0.7
+      },
+      "wordsPerMinute": 1.6167,
+      "secondsPerInteraction": 4.8632,
+      "prediction": {
+        "accuracyTop1": 0.75,
+        "accuracy": 1.0,
+        "meanCharactersBeforePrediction": 0.25,
+        "completionRate": 1.0,
+        "utilization": 1.0,
+        "acceptances": 4,
+        "shortcutAcceptances": 0,
+        "acceptedRanks": {
+          "1": 3,
+          "2": 1
+        }
+      },
+      "errors": {
+        "correctedErrorRate": 0.0,
+        "erasedCharacters": 0,
+        "backspaces": 0,
+        "clears": 0,
+        "rejectedAcceptances": 0,
+        "rejectedAcceptanceRate": 0.0
+      },
+      "interactions": {
+        "total": 29,
+        "selections": 6,
+        "gaze": 29,
+        "touch": 0,
+        "baseline": 97,
+        "baselineSelections": 20
+      }
+    }
+  ],
+  "events": [
+    {
+      "t": 600,
+      "type": "suggestions",
+      "text": "",
+      "suggestions": [
+        "estou",
+        "coloque",
+        "me"
+      ]
+    },
+    {
+      "t": 57511,
+      "type": "command",
+      "command": "up",
+      "source": "gaze"
+    },
+    {
+      "t": 65016,
+      "type": "command",
+      "command": "down",
+      "source": "gaze"
+    },
+    {
+      "t": 68294,
+      "type": "command",
+      "command": "right",
+      "source": "gaze"
+    },
+    {
+      "t": 79101,
+      "type": "command",
+      "command": "right",
+      "source": "gaze"
+    },
+    {
+      "t": 82626,
+      "type": "command",
+      "command": "up",
+      "source": "gaze"
+    },
+    {
+      "t": 86111,
+      "type": "command",
+      "command": "right",
+      "source": "gaze"
+    },
+    {
+      "t": 88171,
+      "type": "command",
+      "command": "down",
+      "source": "gaze"
+    },
+    {
+      "t": 102528,
+      "type": "command",
+      "command": "select",
+      "source": "gaze"
+    },
+    {
+      "t": 102529,
+      "type": "key",
+      "action": "character",
+      "label": "E",
+      "row": 0,
+      "column": 2,
+      "text": "E"
+    },
+    {
+      "t": 102532,
+      "type": "suggestions",
+      "text": "E",
+      "suggestions": [
+        "estou",
+        "eu",
+        "a"
+      ]
+    },
+    {
+      "t": 109720,
+      "type": "command",
+      "command": "up",
+      "source": "gaze"
+    },
+    {
+      "t": 112317,
+      "type": "command",
+      "command": "right",
+      "source": "gaze"
+    },
+    {
+      "t": 128300,
+      "type": "command",
+      "command": "select",
+      "source": "gaze"
+    },
+    {
+      "t": 128310,
+      "type": "acceptance",
+      "text": "EU ",
+      "suggestion": "eu",
+      "rank": 1
+    },
+    {
+      "t": 128312,
+      "type": "suggestions",
+      "text": "EU ",
+      "suggestions": [
+        "quero",
+        "estou",
+        "gosto"
+      ]
+    },
+    {
+      "t": 130048,
+      "type": "command",
+      "command": "left",
+      "source": "gaze"
+    },
+    {
+      "t": 131770,
+      "type": "command",
+      "command": "up",
+      "source": "gaze"
+    },
+    {
+      "t": 138759,
+      "type": "command",
+      "command": "select",
+      "source": "gaze"
+    },
+    {
+      "t": 138763,
+      "type": "acceptance",
+      "text": "EU QUERO ",
+      "suggestion": "quero",
+      "rank": 0
+    },
+    {
+      "t": 138764,
+      "type": "suggestions",
+      "text": "EU QUERO ",
+      "suggestions": [
+        "beber",
+        "comer",
+        "ir"
+      ]
+    },
+    {
+      "t": 142329,
+      "type": "command",
+      "command": "up",
+      "source": "gaze"
+    },
+    {
+      "t": 148094,
+      "type": "command",
+      "command": "select",
+      "source": "gaze"
+    },
+    {
+      "t": 148101,
+      "type": "acceptance",
+      "text": "EU QUERO BEBER ",
+      "suggestion": "beber",
+      "rank": 0
+    },
+    {
+      "t": 148103,
+      "type": "suggestions",
+      "text": "EU QUERO BEBER ",
+      "suggestions": [
+        "água",
+        "café",
+        "a"
+      ]
+    },
+    {
+      "t": 152989,
+      "type": "command",
+      "command": "up",
+      "source": "gaze"
+    },
+    {
+      "t": 163402,
+      "type": "command",
+      "command": "up",
+      "source": "gaze"
+    },
+    {
+      "t": 164967,
+      "type": "command",
+      "command": "up",
+      "source": "gaze"
+    },
+    {
+      "t": 166500,
+      "type": "command",
+      "command": "up",
+      "source": "gaze"
+    },
+    {
+      "t": 169529,
+      "type": "command",
+      "command": "down",
+      "source": "gaze"
+    },
+    {
+      "t": 173642,
+      "type": "command",
+      "command": "up",
+      "source": "gaze"
+    },
+    {
+      "t": 181163,
+      "type": "command",
+      "command": "select",
+      "source": "gaze"
+    },
+    {
+      "t": 181171,
+      "type": "acceptance",
+      "text": "EU QUERO BEBER ÁGUA ",
+      "suggestion": "água",
+      "rank": 0
+    },
+    {
+      "t": 181176,
+      "type": "suggestions",
+      "text": "EU QUERO BEBER ÁGUA ",
+      "suggestions": [
+        "morna",
+        "quente",
+        "a"
+      ]
+    },
+    {
+      "t": 183552,
+      "type": "command",
+      "command": "down",
+      "source": "gaze"
+    },
+    {
+      "t": 186919,
+      "type": "command",
+      "command": "down",
+      "source": "gaze"
+    },
+    {
+      "t": 188569,
+      "type": "command",
+      "command": "down",
+      "source": "gaze"
+    },
+    {
+      "t": 191196,
+      "type": "command",
+      "command": "left",
+      "source": "gaze"
+    },
+    {
+      "t": 192697,
+      "type": "command",
+      "command": "left",
+      "source": "gaze"
+    },
+    {
+      "t": 198543,
+      "type": "command",
+      "command": "select",
+      "source": "gaze"
+    },
+    {
+      "t": 198544,
+      "type": "key",
+      "action": "speak",
+      "label": "FALAR",
+      "row": 3,
+      "column": 0,
+      "text": "EU QUERO BEBER ÁGUA "
+    },
+    {
+      "t": 201106,
+      "type": "command",
+      "command": "select",
+      "source": "gaze"
+    },
+    {
+      "t": 201106,
+      "type": "key",
+      "action": "speak",
+      "label": "FALAR",
+      "row": 3,
+      "column": 0,
+      "text": "EU QUERO BEBER ÁGUA "
+    }
+  ]
+}
