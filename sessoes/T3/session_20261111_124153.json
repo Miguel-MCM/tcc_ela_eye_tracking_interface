@@ -1,0 +1,711 @@
+{
+  "schemaVersion": 1,
+  "startedAt": "2026-11-11T12:41:53.224230",
+  "savedAt": "2026-11-11T12:46:09.241763",
+  "summary": {
+    "phrases": 1,
+    "durationSeconds": 197.662,
+    "characters": 23,
+    "words": 5,
+    "kspc": {
+      "interactions": 2.3913,
+      "selections": 0.6087
+    },
+    "keystrokeSavings": {
+      "interactions": 0.486,
+      "selections": 0.4167
+    },
+    "wordsPerMinute": 1.3963,
+    "secondsPerInteraction": 3.5939,
+    "prediction": {
+      "accuracyTop1": 1.0,
+      "accuracy": 1.0,
+      "meanCharactersBeforePrediction": 0.0,
+      "completionRate": 1.0,
+      "utilization": 1.0,
+      "acceptances": 5,
+      "shortcutAcceptances": 0,
+      "acceptedRanks": {
+        "1": 5
+      }
+    },
+    "errors": {
+      "correctedErrorRate": 0.08,
+      "erasedCharacters": 2,
+      "backspaces": 2,
+      "clears": 0,
+      "rejectedAcceptances": 0,
+      "rejectedAcceptanceRate": 0.0
+    },
+    "interactions": {
+      "total": 55,
+      "selections": 14,
+      "gaze": 55,
+      "touch": 0,
+      "baseline": 107,
+      "baselineSelections": 24
+    }
+  },
+  "phrases": [
+    {
+      "text": "ESTOU COM DOR DE CABEÇA",
+      "startSeconds": 58.218,
+      "durationSeconds": 197.662,
+      "characters": 23,
+      "words": [
+        {
+          "word": "ESTOU",
+          "entry": "suggestion",
+          "predictedAfterCharacters": 0,
+          "top1AfterCharacters": 0,
+          "acceptedRank": 1
+        },
+        {
+          "word": "COM",
+          "entry": "suggestion",
+          "predictedAfterCharacters": 0,
+          "top1AfterCharacters": 0,
+          "acceptedRank": 1
+        },
+        {
+          "word": "DOR",
+          "entry": "suggestion",
+          "predictedAfterCharacters": 0,
+          "top1AfterCharacters": 0,
+          "acceptedRank": 1
+        },
+        {
+          "word": "DE",
+          "entry": "suggestion",
+          "predictedAfterCharacters": 0,
+          "top1AfterCharacters": 0,
+          "acceptedRank": 1
+        },
+        {
+          "word": "CABEÇA",
+          "entry": "suggestion",
+          "predictedAfterCharacters": 0,
+          "top1AfterCharacters": 0,
+          "acceptedRank": 1
+        }
+      ],
+      "kspc": {
+        "interactions": 2.3913,
+        "selections": 0.6087
+      },
+      "keystrokeSavings": {
+        "interactions": 0.486,
+        "selections": 0.4167
+      },
+      "wordsPerMinute": 1.3963,
+      "secondsPerInteraction": 3.5939,
+      "prediction": {
+        "accuracyTop1": 1.0,
+        "accuracy": 1.0,
+        "meanCharactersBeforePrediction": 0.0,
+        "completionRate": 1.0,
+        "utilization": 1.0,
+        "acceptances": 5,
+        "shortcutAcceptances": 0,
+        "acceptedRanks": {
+          "1": 5
+        }
+      },
+      "errors": {
+        "correctedErrorRate": 0.08,
+        "erasedCharacters": 2,
+        "backspaces": 2,
+        "clears": 0,
+        "rejectedAcceptances": 0,
+        "rejectedAcceptanceRate": 0.0
+      },
+      "interactions": {
+        "total": 55,
+        "selections": 14,
+        "gaze": 55,
+        "touch": 0,
+        "baseline": 107,
+        "baselineSelections": 24
+      }
+    }
+  ],
+  "events": [
+    {
+      "t": 618,
+      "type": "suggestions",
+      "text": "",
+      "suggestions": [
+        "estou",
+        "coloque",
+        "me"
+      ]
+    },
+    {
+      "t": 58218,
+      "type": "command",
+      "command": "up",
+      "source": "gaze"
+    },
+    {
+      "t": 61339,
+      "type": "command",
+      "command": "down",
+      "source": "gaze"
+    },
+    {
+      "t": 63403,
+      "type": "command",
+      "command": "up",
+      "source": "gaze"
+    },
+    {
+      "t": 67337,
+      "type": "command",
+      "command": "select",
+      "source": "gaze"
+    },
+    {
+      "t": 67346,
+      "type": "acceptance",
+      "text": "ESTOU ",
+      "suggestion": "estou",
+      "rank": 0
+    },
+    {
+      "t": 67349,
+      "type": "suggestions",
+      "text": "ESTOU ",
+      "suggestions": [
+        "com",
+        "acompanhando",
+        "me"
+      ]
+    },
+    {
+      "t": 70698,
+      "type": "command",
+      "command": "up",
+      "source": "gaze"
+    },
+    {
+      "t": 74873,
+      "type": "command",
+      "command": "select",
+      "source": "gaze"
+    },
+    {
+      "t": 74880,
+      "type": "acceptance",
+      "text": "ESTOU COM ",
+      "suggestion": "com",
+      "rank": 0
+    },
+    {
+      "t": 74882,
+      "type": "suggestions",
+      "text": "ESTOU COM ",
+      "suggestions": [
+        "dor",
+        "a",
+        "fome"
+      ]
+    },
+    {
+      "t": 78293,
+      "type": "command",
+      "command": "right",
+      "source": "gaze"
+    },
+    {
+      "t": 79795,
+      "type": "command",
+      "command": "right",
+      "source": "gaze"
+    },
+    {
+      "t": 89382,
+      "type": "command",
+      "command": "down",
+      "source": "gaze"
+    },
+    {
+      "t": 94492,
+      "type": "command",
+      "command": "select",
+      "source": "gaze"
+    },
+    {
+      "t": 94494,
+      "type": "key",
+      "action": "character",
+      "label": "D",
+      "row": 1,
+      "column": 2,
+      "text": "ESTOU COM D"
+    },
+    {
+      "t": 94496,
+      "type": "suggestions",
+      "text": "ESTOU COM D",
+      "suggestions": [
+        "dor",
+        "dificuldade",
+        "de"
+      ]
+    },
+    {
+      "t": 96941,
+      "type": "command",
+      "command": "up",
+      "source": "gaze"
+    },
+    {
+      "t": 98495,
+      "type": "command",
+      "command": "up",
+      "source": "gaze"
+    },
+    {
+      "t": 100007,
+      "type": "command",
+      "command": "up",
+      "source": "gaze"
+    },
+    {
+      "t": 102217,
+      "type": "command",
+      "command": "select",
+      "source": "gaze"
+    },
+    {
+      "t": 102220,
+      "type": "acceptance",
+      "text": "ESTOU COM DOR ",
+      "suggestion": "dor",
+      "rank": 0
+    },
+    {
+      "t": 102221,
+      "type": "suggestions",
+      "text": "ESTOU COM DOR ",
+      "suggestions": [
+        "de",
+        "já",
+        "ainda"
+      ]
+    },
+    {
+      "t": 104668,
+      "type": "command",
+      "command": "up",
+      "source": "gaze"
+    },
+    {
+      "t": 109967,
+      "type": "command",
+      "command": "select",
+      "source": "gaze"
+    },
+    {
+      "t": 109974,
+      "type": "acceptance",
+      "text": "ESTOU COM DOR DE ",
+      "suggestion": "de",
+      "rank": 0
+    },
+    {
+      "t": 109977,
+      "type": "suggestions",
+      "text": "ESTOU COM DOR DE ",
+      "suggestions": [
+        "cabeça",
+        "ouvido",
+        "mim"
+      ]
+    },
+    {
+      "t": 113551,
+      "type": "command",
+      "command": "down",
+      "source": "gaze"
+    },
+    {
+      "t": 115203,
+      "type": "command",
+      "command": "select",
+      "source": "gaze"
+    },
+    {
+      "t": 115203,
+      "type": "key",
+      "action": "character",
+      "label": "D",
+      "row": 1,
+      "column": 2,
+      "text": "ESTOU COM DOR DE D"
+    },
+    {
+      "t": 115204,
+      "type": "suggestions",
+      "text": "ESTOU COM DOR DE D",
+      "suggestions": [
+        "dor",
+        "de",
+        "do"
+      ]
+    },
+    {
+      "t": 117772,
+      "type": "command",
+      "command": "up",
+      "source": "gaze"
+    },
+    {
+      "t": 120477,
+      "type": "command",
+      "command": "right",
+      "source": "gaze"
+    },
+    {
+      "t": 123089,
+      "type": "command",
+      "command": "down",
+      "source": "gaze"
+    },
+    {
+      "t": 127569,
+      "type": "command",
+      "command": "down",
+      "source": "gaze"
+    },
+    {
+      "t": 131989,
+      "type": "command",
+      "command": "down",
+      "source": "gaze"
+    },
+    {
+      "t": 135649,
+      "type": "command",
+      "command": "left",
+      "source": "gaze"
+    },
+    {
+      "t": 142166,
+      "type": "command",
+      "command": "select",
+      "source": "gaze"
+    },
+    {
+      "t": 142166,
+      "type": "key",
+      "action": "backspace",
+      "label": "APAGAR",
+      "row": 3,
+      "column": 2,
+      "text": "ESTOU COM DOR DE "
+    },
+    {
+      "t": 142169,
+      "type": "suggestions",
+      "text": "ESTOU COM DOR DE ",
+      "suggestions": [
+        "cabeça",
+        "ouvido",
+        "mim"
+      ]
+    },
+    {
+      "t": 144248,
+      "type": "command",
+      "command": "up",
+      "source": "gaze"
+    },
+    {
+      "t": 150181,
+      "type": "command",
+      "command": "select",
+      "source": "gaze"
+    },
+    {
+      "t": 150182,
+      "type": "key",
+      "action": "character",
+      "label": "C",
+      "row": 2,
+      "column": 2,
+      "text": "ESTOU COM DOR DE C"
+    },
+    {
+      "t": 150182,
+      "type": "suggestions",
+      "text": "ESTOU COM DOR DE C",
+      "suggestions": [
+        "cabeça",
+        "cabeceira",
+        "cada"
+      ]
+    },
+    {
+      "t": 152532,
+      "type": "command",
+      "command": "up",
+      "source": "gaze"
+    },
+    {
+      "t": 155788,
+      "type": "command",
+      "command": "left",
+      "source": "gaze"
+    },
+    {
+      "t": 162123,
+      "type": "command",
+      "command": "select",
+      "source": "gaze"
+    },
+    {
+      "t": 162123,
+      "type": "key",
+      "action": "character",
+      "label": "S",
+      "row": 1,
+      "column": 1,
+      "text": "ESTOU COM DOR DE CS"
+    },
+    {
+      "t": 162125,
+      "type": "suggestions",
+      "text": "ESTOU COM DOR DE CS",
+      "suggestions": []
+    },
+    {
+      "t": 168102,
+      "type": "command",
+      "command": "select",
+      "source": "gaze"
+    },
+    {
+      "t": 168102,
+      "type": "key",
+      "action": "character",
+      "label": "S",
+      "row": 1,
+      "column": 1,
+      "text": "ESTOU COM DOR DE CSS"
+    },
+    {
+      "t": 168107,
+      "type": "suggestions",
+      "text": "ESTOU COM DOR DE CSS",
+      "suggestions": [
+        "casa",
+        "casaco"
+      ]
+    },
+    {
+      "t": 170243,
+      "type": "command",
+      "command": "up",
+      "source": "gaze"
+    },
+    {
+      "t": 179361,
+      "type": "command",
+      "command": "down",
+      "source": "gaze"
+    },
+    {
+      "t": 183369,
+      "type": "command",
+      "command": "down",
+      "source": "gaze"
+    },
+    {
+      "t": 186852,
+      "type": "command",
+      "command": "down",
+      "source": "gaze"
+    },
+    {
+      "t": 189456,
+      "type": "command",
+      "command": "right",
+      "source": "gaze"
+    },
+    {
+      "t": 194035,
+      "type": "command",
+      "command": "select",
+      "source": "gaze"
+    },
+    {
+      "t": 194035,
+      "type": "key",
+      "action": "backspace",
+      "label": "APAGAR",
+      "row": 3,
+      "column": 2,
+      "text": "ESTOU COM DOR DE CS"
+    },
+    {
+      "t": 194036,
+      "type": "suggestions",
+      "text": "ESTOU COM DOR DE CS",
+      "suggestions": []
+    },
+    {
+      "t": 196492,
+      "type": "command",
+      "command": "up",
+      "source": "gaze"
+    },
+    {
+      "t": 199532,
+      "type": "command",
+      "command": "right",
+      "source": "gaze"
+    },
+    {
+      "t": 201038,
+      "type": "command",
+      "command": "right",
+      "source": "gaze"
+    },
+    {
+      "t": 212626,
+      "type": "command",
+      "command": "select",
+      "source": "gaze"
+    },
+    {
+      "t": 212626,
+      "type": "key",
+      "action": "character",
+      "label": "B",
+      "row": 2,
+      "column": 4,
+      "text": "ESTOU COM DOR DE CSB"
+    },
+    {
+      "t": 212630,
+      "type": "suggestions",
+      "text": "ESTOU COM DOR DE CSB",
+      "suggestions": [
+        "cabeça",
+        "cabeceira",
+        "cabelo"
+      ]
+    },
+    {
+      "t": 215537,
+      "type": "command",
+      "command": "up",
+      "source": "gaze"
+    },
+    {
+      "t": 217064,
+      "type": "command",
+      "command": "up",
+      "source": "gaze"
+    },
+    {
+      "t": 218719,
+      "type": "command",
+      "command": "up",
+      "source": "gaze"
+    },
+    {
+      "t": 222967,
+      "type": "command",
+      "command": "select",
+      "source": "gaze"
+    },
+    {
+      "t": 222974,
+      "type": "acceptance",
+      "text": "ESTOU COM DOR DE CABEÇA ",
+      "suggestion": "cabeça",
+      "rank": 0
+    },
+    {
+      "t": 222975,
+      "type": "suggestions",
+      "text": "ESTOU COM DOR DE CABEÇA ",
+      "suggestions": [
+        "para",
+        "a",
+        "o"
+      ]
+    },
+    {
+      "t": 226186,
+      "type": "command",
+      "command": "down",
+      "source": "gaze"
+    },
+    {
+      "t": 235554,
+      "type": "command",
+      "command": "down",
+      "source": "gaze"
+    },
+    {
+      "t": 237131,
+      "type": "command",
+      "command": "down",
+      "source": "gaze"
+    },
+    {
+      "t": 239968,
+      "type": "command",
+      "command": "left",
+      "source": "gaze"
+    },
+    {
+      "t": 241524,
+      "type": "command",
+      "command": "left",
+      "source": "gaze"
+    },
+    {
+      "t": 245047,
+      "type": "command",
+      "command": "left",
+      "source": "gaze"
+    },
+    {
+      "t": 247707,
+      "type": "command",
+      "command": "right",
+      "source": "gaze"
+    },
+    {
+      "t": 250700,
+      "type": "command",
+      "command": "left",
+      "source": "gaze"
+    },
+    {
+      "t": 252244,
+      "type": "command",
+      "command": "left",
+      "source": "gaze"
+    },
+    {
+      "t": 255881,
+      "type": "command",
+      "command": "select",
+      "source": "gaze"
+    },
+    {
+      "t": 255881,
+      "type": "key",
+      "action": "speak",
+      "label": "FALAR",
+      "row": 3,
+      "column": 0,
+      "text": "ESTOU COM DOR DE CABEÇA "
+    }
+  ]
+}
